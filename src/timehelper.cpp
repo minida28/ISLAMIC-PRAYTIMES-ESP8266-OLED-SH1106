@@ -140,7 +140,7 @@ char *getNextSyncStr()
   minutes = tm->tm_min;
   seconds = tm->tm_sec;
 
-  char buf[30];
+  static char buf[30];
   snprintf(buf, sizeof(buf), "%u days %02d:%02d:%02d", days, hours, minutes, seconds);
 
   return buf;
