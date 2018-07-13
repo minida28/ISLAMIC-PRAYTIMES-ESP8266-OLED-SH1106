@@ -446,7 +446,7 @@ void loop()
         Serial.println((uint32_t)now);
 
         // human readable
-        // Example: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)        
+        // Printed format: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)        
         char buf[60];
         strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT%z (%Z)", localtime(&now));
         Serial.print("LOCAL date/time: ");
