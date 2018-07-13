@@ -1,15 +1,23 @@
 #include <Arduino.h>
 #include "sholat.h"
 #include "sholathelper.h"
-#include "timehelper.h"
+// #include "timehelper.h"
 #include "progmemmatrix.h"
 
+#define PROGMEM_T __attribute__((section(".irom.text.template")))
+
+#define PRINTPORT Serial
 #define DEBUGPORT Serial
 
-// #define RELEASE
+#define RELEASE
+
+#define PRINT(fmt, ...)                       \
+  {                                           \
+    static const char pfmt[] PROGMEM_T = fmt; \
+    PRINTPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+  }
 
 #ifndef RELEASE
-#define PROGMEM_T __attribute__((section(".irom.text.template")))
 #define DEBUGLOG(fmt, ...)                    \
   {                                           \
     static const char pfmt[] PROGMEM_T = fmt; \
@@ -30,6 +38,14 @@ char bufHOUR[2];
 char bufMINUTE[2];
 char bufSECOND[2];
 
+// utc
+// time_t t_utc = time(nullptr);
+// struct tm *tm_utc = gmtime(&t_utc);
+
+// // local
+// time_t t_local = t_utc + _configLocation.timezone / 10.0 * 3600;
+// struct tm *tm_local = localtime(&t_utc);
+
 time_t currentSholatTime = 0;
 time_t nextSholatTime = 0;
 
@@ -41,7 +57,10 @@ char bufCommonSholat[30];
 
 char *sholatNameStr(uint8_t id)
 {
-  if (weekday(localTime) == 6 && id == Dhuhr)
+  time_t t_utc = time(nullptr);
+  struct tm *tm_local = localtime(&t_utc);
+
+  if (tm_local->tm_wday == 6 && id == Dhuhr)
   {
     char JUMUAH[] = "JUMAT";
     strcpy(bufCommonSholat, JUMUAH);
@@ -84,65 +103,83 @@ void process_sholat()
   // Tuning SHOLAT TIME
   sholat.tune(timeOffsets);
 
-  //CALCULATE YESTERDAY'S SHOLAT TIMES
-  time_t t_yesterday = localTime - 86400;
-  sholat.get_prayer_times(t_yesterday, _configLocation.latitude, _configLocation.longitude, _configLocation.timezone / 10, sholat.timesYesterday);
+  // timezone in seconds
 
-  // print sholat times for Tomorrow
-  Serial.println();
-  digitalClockDisplay(t_yesterday);
-  Serial.print(F(" - YESTERDAY's Schedule - "));
-  Serial.println(dayStr(weekday(t_yesterday)));
+  // location settings;
+  double lat = _configLocation.latitude;
+  double lon = _configLocation.longitude;
+  float tZ = TimezoneFloat();
+
+  time_t now;
+  struct tm *tm;
+  int year;
+  int month;
+  int day;
+
+  time(&now);
+
+  //CALCULATE YESTERDAY'S SHOLAT TIMES    
+  tm = localtime(&now);
+
+  tm->tm_mday--; // alter tm struct to yesterday
+
+  time_t t_yesterday = mktime(tm);
+  tm = localtime(&t_yesterday);
+
+  year = tm->tm_year + 1900;
+  month = tm->tm_mon + 1;
+  day = tm->tm_mday;
+
+  sholat.get_prayer_times(year, month, day, lat, lon, tZ, sholat.timesYesterday);
+
+  // print sholat times for yesterday
+  PRINT("\r\nYESTERDAY's Schedule - %s", asctime(tm));
   for (unsigned int i = 0; i < sizeof(sholat.timesYesterday) / sizeof(double); i++)
   {
-    //Convert sholat time from float to hour and minutes
-    //and store to an array (to retrieve if needed)
+    // Convert sholat time from float to hour and minutes
+    // and store to an array (to retrieve if needed)
     const char *temp = sholat.float_time_to_time24(sholat.timesYesterday[i]);
     strlcpy(sholatTimeYesterdayArray[i], temp, sizeof(sholatTimeYesterdayArray[i]));
 
-    //Calculate timestamp of of sholat time
+    // Calculate timestamp of of sholat time
 
     uint8_t hr, mnt;
     sholat.get_float_time_parts(sholat.timesYesterday[i], hr, mnt);
 
-    //determine yesterday's year, month and day based on today's time
-    TimeElements tm;
-    breakTime(t_yesterday, tm);
-
-    int yr, mo, d;
-    yr = tm.Year + 1970;
-    mo = tm.Month;
-    d = tm.Day;
-
-    time_t s_tm;
-    s_tm = tmConvert_t(yr, mo, d, hr, mnt, 0);
+    // modify time struct
+    tm->tm_hour = hr;
+    tm->tm_min = mnt;
+    tm->tm_sec = 0;
 
     //store to timestamp array
-    sholat.timestampSholatTimesYesterday[i] = s_tm;
+    sholat.timestampSholatTimesYesterday[i] = mktime(tm);
 
     //Print all results
     //char tmpFloat[10];
-    Serial.printf_P(PSTR("%d\t%-8s  %8.5f  %s  %d\r\n"),
-                    i,
-                    //TimeName[i],
-                    sholatNameStr(i),
-                    //dtostrf(sholat.timesYesterday[i], 8, 5, tmpFloat),
-                    sholat.timesYesterday[i],
-                    sholatTimeYesterdayArray[i],
-                    sholat.timestampSholatTimesYesterday[i]);
+    PRINT("%d\t%-8s  %8.5f  %s  %lu\r\n",
+          i,
+          //TimeName[i],
+          sholatNameStr(i),
+          //dtostrf(sholat.timesYesterday[i], 8, 5, tmpFloat),
+          sholat.timesYesterday[i],
+          sholatTimeYesterdayArray[i],
+          sholat.timestampSholatTimesYesterday[i]);
     //Note:
     //snprintf specifier %f for float or double is not available in embedded device avr-gcc.
     //Therefore, float or double must be converted to string first. For this case I've used dtosrf to achive that.
   }
 
   // CALCULATE TODAY'S SHOLAT TIMES
-  sholat.get_prayer_times(localTime, _configLocation.latitude, _configLocation.longitude, _configLocation.timezone / 10, sholat.times);
+  tm = localtime(&now);
+  
+  year = tm->tm_year + 1900;
+  month = tm->tm_mon + 1;
+  day = tm->tm_mday;
+
+  sholat.get_prayer_times(year, month, day, lat, lon, tZ, sholat.times);
 
   // print sholat times
-  Serial.println();
-  digitalClockDisplay();
-  Serial.print(F(" - TODAY's Schedule - "));
-  Serial.println(dayStr(weekday(localTime)));
+  PRINT("\r\nTODAY's Schedule - %s", asctime(tm));
   for (unsigned int i = 0; i < sizeof(sholat.times) / sizeof(double); i++)
   {
     //Convert sholat time from float to hour and minutes
@@ -151,37 +188,46 @@ void process_sholat()
     strlcpy(sholatTimeArray[i], temp, sizeof(sholatTimeArray[i]));
 
     //Calculate timestamp of of sholat time
-    time_t s_tm;
     uint8_t hr, mnt;
     sholat.get_float_time_parts(sholat.times[i], hr, mnt);
-    s_tm = tmConvert_t(year(localTime), month(localTime), day(localTime), hr, mnt, 0);
+
+    // modify time struct
+    tm->tm_hour = hr;
+    tm->tm_min = mnt;
+    tm->tm_sec = 0;
 
     //store to timestamp array
-    sholat.timestampSholatTimesToday[i] = s_tm;
+    sholat.timestampSholatTimesToday[i] = mktime(tm);
 
     //Print all results
     //char tmpFloat[10];
-    Serial.printf_P(PSTR("%d\t%-8s  %8.5f  %s  %d\r\n"),
-                    i,
-                    sholatNameStr(i),
-                    //dtostrf(sholat.times[i], 8, 5, tmpFloat),
-                    sholat.times[i],
-                    sholatTimeArray[i],
-                    sholat.timestampSholatTimesToday[i]);
+    PRINT("%d\t%-8s  %8.5f  %s  %lu\r\n",
+          i,
+          sholatNameStr(i),
+          //dtostrf(sholat.times[i], 8, 5, tmpFloat),
+          sholat.times[i],
+          sholatTimeArray[i],
+          sholat.timestampSholatTimesToday[i]);
     //Note:
     //snprintf specifier %f for float or double is not available in embedded device avr-gcc.
     //Therefore, float or double must be converted to string first. For this case I've used dtosrf to achive that.
   }
 
-  //CALCULATE TOMORROW'S SHOLAT TIMES
-  time_t t = localTime + 86400;
-  sholat.get_prayer_times(t, _configLocation.latitude, _configLocation.longitude, _configLocation.timezone / 10, sholat.timesTomorrow);
+  // CALCULATE TOMORROW'S SHOLAT TIMES
+  tm = localtime(&now);
+
+  tm->tm_mday++; // alter tm struct to tomorrow
+  time_t t_tomorrow = mktime(tm);
+  tm = localtime(&t_tomorrow);
+
+  year = tm->tm_year + 1900;
+  month = tm->tm_mon + 1;
+  day = tm->tm_mday;
+
+  sholat.get_prayer_times(year, month, day, lat, lon, tZ, sholat.timesTomorrow);
 
   // print sholat times for Tomorrow
-  Serial.println();
-  digitalClockDisplay(t);
-  Serial.print(F(" - TOMORROW's Schedule - "));
-  Serial.println(dayStr(weekday(t)));
+  PRINT("\r\nTOMORROW's Schedule - %s", asctime(tm));
   for (unsigned int i = 0; i < sizeof(sholat.timesTomorrow) / sizeof(double); i++)
   {
     //Convert sholat time from float to hour and minutes
@@ -190,35 +236,27 @@ void process_sholat()
     strlcpy(sholatTimeTomorrowArray[i], temp, sizeof(sholatTimeTomorrowArray[i]));
 
     //Calculate timestamp of of sholat time
-
     uint8_t hr, mnt;
     sholat.get_float_time_parts(sholat.timesTomorrow[i], hr, mnt);
 
-    //determine tomorrow's year, month and day based on today's time
-    time_t t = localTime + 86400;
-    TimeElements tm;
-    breakTime(t, tm);
-
-    int yr, mo, d;
-    yr = tm.Year + 1970;
-    mo = tm.Month;
-    d = tm.Day;
-
-    time_t s_tm;
-    s_tm = tmConvert_t(yr, mo, d, hr, mnt, 0);
+    // modify time struct
+    tm->tm_hour = hr;
+    tm->tm_min = mnt;
+    tm->tm_sec = 0;
 
     //store to timestamp array
-    sholat.timestampSholatTimesTomorrow[i] = s_tm;
+    sholat.timestampSholatTimesTomorrow[i] = mktime(tm);
+    ;
 
     //Print all results
     //char tmpFloat[10];
-    Serial.printf_P(PSTR("%d\t%-8s  %8.5f  %s  %d\r\n"),
-                    i,
-                    sholatNameStr(i),
-                    //dtostrf(sholat.timesTomorrow[i], 8, 5, tmpFloat),
-                    sholat.timesTomorrow[i],
-                    sholatTimeTomorrowArray[i],
-                    sholat.timestampSholatTimesTomorrow[i]);
+    PRINT("%d\t%-8s  %8.5f  %s  %lu\r\n",
+          i,
+          sholatNameStr(i),
+          //dtostrf(sholat.timesTomorrow[i], 8, 5, tmpFloat),
+          sholat.timesTomorrow[i],
+          sholatTimeTomorrowArray[i],
+          sholat.timestampSholatTimesTomorrow[i]);
     //Note:
     //snprintf specifier %f for float or double is not available in embedded device avr-gcc.
     //Therefore, float or double must be converted to string first. For this case I've used dtosrf to achive that.
@@ -230,13 +268,11 @@ void process_sholat()
 
 void process_sholat_2nd_stage()
 {
-  DEBUGLOG("%s\r\n", __PRETTY_FUNCTION__);
-
-  time_t timestamp_now = 0;
+  // DEBUGLOG("%s\r\n", __PRETTY_FUNCTION__);
 
   time_t s_tm = 0;
 
-  timestamp_now = localTime;
+  time_t t_utc = time(nullptr);
 
   //int hrNextTime, mntNextTime;
 
@@ -284,9 +320,11 @@ void process_sholat_2nd_stage()
 
       timestamp_next_tomorrow = sholat.timestampSholatTimesTomorrow[tempNextID];
 
+      DEBUGLOG("timestamp_current_today=%lu, timestamp_next_today=%lu, timestamp_next_tomorrow=%lu\r\n", timestamp_current_today, timestamp_next_today, timestamp_next_tomorrow);
+
       if (timestamp_current_today < timestamp_next_today)
       {
-        if (timestamp_now <= timestamp_current_today && timestamp_now < timestamp_next_today)
+        if (t_utc <= timestamp_current_today && t_utc < timestamp_next_today)
         {
           CURRENTTIMEID = tempPreviousID;
           NEXTTIMEID = tempCurrentID;
@@ -294,7 +332,7 @@ void process_sholat_2nd_stage()
 
           break;
         }
-        else if (timestamp_now > timestamp_current_today && timestamp_now <= timestamp_next_today)
+        else if (t_utc > timestamp_current_today && t_utc <= timestamp_next_today)
         {
           CURRENTTIMEID = tempCurrentID;
           NEXTTIMEID = tempNextID;
@@ -305,7 +343,7 @@ void process_sholat_2nd_stage()
       }
       else if (timestamp_current_today > timestamp_next_today)
       {
-        if (timestamp_now >= timestamp_current_today && timestamp_now < timestamp_next_tomorrow)
+        if (t_utc >= timestamp_current_today && t_utc < timestamp_next_tomorrow)
         {
           CURRENTTIMEID = tempCurrentID;
           NEXTTIMEID = tempNextID;
@@ -316,6 +354,8 @@ void process_sholat_2nd_stage()
       }
     }
   } //end of for loop
+
+  DEBUGLOG("CURRENTTIMEID=%d, NEXTTIMEID=%d\r\n", CURRENTTIMEID, NEXTTIMEID);
 
   time_t timestamp_current_yesterday;
   time_t timestamp_current_today;
@@ -332,91 +372,53 @@ void process_sholat_2nd_stage()
     currentSholatTime = timestamp_current_today;
     nextSholatTime = timestamp_next_today;
     //PRINT("%s %lu %lu\n", "Case 2a", currentSholatTime, nextSholatTime);
+    DEBUGLOG("NEXTTIMEID > CURRENTTIMEID, currentSholatTime=%lu, nextSholatTime=%lu\r\n", currentSholatTime, nextSholatTime);
   }
   else if (NEXTTIMEID < CURRENTTIMEID)
   {
-    if (isPM(localTime))
+    time_t t_utc = time(nullptr);
+    struct tm *tm_utc = gmtime(&t_utc);
+
+    if (tm_utc->tm_hour >= 12) // is PM ?
     {
       currentSholatTime = timestamp_current_today;
       nextSholatTime = timestamp_next_tomorrow;
-      //PRINT("%s %lu %lu\n", "Case 2b", currentSholatTime, nextSholatTime);
+      DEBUGLOG("NEXTTIMEID < CURRENTTIMEID, currentSholatTime=%lu, nextSholatTime=%lu Hour: %d, is PM\r\n", currentSholatTime, nextSholatTime, tm_utc->tm_hour);
     }
-    if (isAM(localTime))
+    if (tm_utc->tm_hour < 12) // is AM ?
     {
       currentSholatTime = timestamp_current_yesterday;
       nextSholatTime = timestamp_next_today;
       //PRINT("%s %lu %lu\n", "Case 2c", currentSholatTime, nextSholatTime);
+      DEBUGLOG("NEXTTIMEID < CURRENTTIMEID, currentSholatTime=%lu, nextSholatTime=%lu Hour: %d, is PM\r\n", currentSholatTime, nextSholatTime, tm_utc->tm_hour);
     }
   }
 
-  //uint8_t lenCURRENTTIMENAME = strCURRENTTIMENAME.length();
-  //char bufCURRENTTIMENAME[lenCURRENTTIMENAME + 1];
-
-  //lenNEXTTIMENAME = NEXTTIMENAME.length();
-  //char bufNEXTTIMENAME[lenNEXTTIMENAME + 1];
-
-  //  uint8_t len1 = strlen(CURRENTTIMENAME);
-  //  char bufCURRENTTIMENAME[len1 + 1];
-  //
-  //  uint8_t len2 = strlen(NEXTTIMENAME);
-  //  char bufNEXTTIMENAME[len2 + 1];
-
-  time_t timeDiff = s_tm - localTime;
+  time_t timeDiff = s_tm - t_utc;
+  DEBUGLOG("s_tm: %lu, t_utc: %lu, timeDiff: %lu\r\n", s_tm, t_utc, timeDiff);
 
   // uint16_t days;
-  uint8_t hr;
-  uint8_t mnt;
-  uint8_t sec;
+  // uint8_t hr;
+  // uint8_t mnt;
+  // uint8_t sec;
 
-  /* // METHOD 1
+  // // METHOD 2
+  // // days = elapsedDays(timeDiff);
+  // HOUR = numberOfHours(timeDiff);
+  // MINUTE = numberOfMinutes(timeDiff);
+  // SECOND = numberOfSeconds(timeDiff);
 
-    char *s;
-    s = TimeToString(timeDiff, &hr, &mnt, &sec);
+  // METHOD 3 -> https://stackoverflow.com/questions/2419562/convert-seconds-to-days-minutes-and-seconds/17590511#17590511
+  tm *diff = gmtime(&timeDiff); // convert to broken down time
+  // DAYS = diff->tm_yday;
+  HOUR = diff->tm_hour;
+  MINUTE = diff->tm_min;
+  SECOND = diff->tm_sec;
 
-    //  DEBUGLOG(getDateTimeString(localTime).c_str());
-    //  DEBUGLOG("> ");
-    //  DEBUGLOG(TimeName[CURRENTTIMEID]);
-    //  DEBUGLOG("->");
-    //  DEBUGLOG(TimeName[NEXTTIMEID]);
-    //  DEBUGLOG(", ");
-    //  DEBUGLOG("ts_Now: ");
-    //  DEBUGLOG("%ld", localTime;
-    //  DEBUGLOG(", ");
-    //  DEBUGLOG("ts_Next: ");
-    //  DEBUGLOG("%ld", s_tm);
-    //  DEBUGLOG(", ");
-    //  DEBUGLOG("diff: ");
-    //  DEBUGLOG("%ld", timeDiff);
-    //  DEBUGLOG(", ");
-    //  DEBUGLOG("h,m,s: %d:%d:%d\n\r", hr, mnt, sec);
-    //  //DEBUGLOG(s);
-  */
-
-  // METHOD 2
-  //days = elapsedDays(timeDiff);
-  hr = numberOfHours(timeDiff);
-  mnt = numberOfMinutes(timeDiff);
-  sec = numberOfSeconds(timeDiff);
-
-  HOUR = hr;
-  MINUTE = mnt;
-  SECOND = sec;
-
-  static int HOUR_old = 100;
-
-  if (HOUR != HOUR_old)
-  {
-    HOUR_old = HOUR;
-    dtostrf(HOUR, 1, 0, bufHOUR);
-  }
-
-  static int MINUTE_old = 100;
-
-  if (MINUTE != MINUTE_old)
-  {
-    MINUTE_old = MINUTE;
-    dtostrf(MINUTE, 1, 0, bufMINUTE);
-  }
+  // METHOD 4 -> https://stackoverflow.com/questions/2419562/convert-seconds-to-days-minutes-and-seconds/2419597#2419597
+  // HOUR = floor(timeDiff / 3600.0);
+  // MINUTE = floor(fmod(timeDiff, 3600.0) / 60.0);
+  // SECOND = fmod(timeDiff, 60.0);
 
   static int SECOND_old = 100;
 
@@ -424,13 +426,12 @@ void process_sholat_2nd_stage()
   {
     SECOND_old = SECOND;
     dtostrf(SECOND, 1, 0, bufSECOND);
+    dtostrf(MINUTE, 1, 0, bufMINUTE);
+    dtostrf(HOUR, 1, 0, bufHOUR);
   }
 
   if (SECOND == 0)
   {
-    digitalClockDisplay();
-    Serial.print(F("> "));
-
     if (HOUR != 0 || MINUTE != 0)
     {
       if (HOUR != 0)
@@ -455,14 +456,9 @@ void process_sholat_2nd_stage()
 
 void ProcessSholatEverySecond()
 {
-  static time_t t_nextMidnight = 0;
-
-  time_t t = nextMidnight(localTime);
-
-  if (t != t_nextMidnight)
+  time_t now = time(nullptr);
+  if (now >= nextSholatTime)
   {
-    t_nextMidnight = t;
-
     process_sholat();
   }
 
@@ -474,4 +470,39 @@ void ProcessSholatEverySecond()
   {
     NEXTTIMEID_old = NEXTTIMEID;
   }
+}
+
+float TimezoneFloat()
+{
+  time_t rawtime;
+  struct tm *timeinfo;
+  char buffer[6];
+
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  strftime(buffer, 6, "%z", timeinfo);
+
+  char bufTzHour[4];
+  strncpy(bufTzHour, buffer, 3);
+  int8_t hour = atoi(bufTzHour);
+
+  char bufTzMin[4];
+  bufTzMin[0] = buffer[0]; // sign
+  bufTzMin[1] = buffer[3];
+  bufTzMin[2] = buffer[4];
+  float min = atoi(bufTzMin) / 60.0;
+
+  float TZ_FLOAT = hour + min;
+  return TZ_FLOAT;
+}
+
+int32_t TimezoneMinutes()
+{
+  return TimezoneFloat() * 60;
+}
+
+int32_t TimezoneSeconds()
+{
+  return TimezoneMinutes() * 60;
 }

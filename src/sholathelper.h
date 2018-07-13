@@ -21,5 +21,8 @@ void process_sholat();
 void process_sholat_2nd_stage();
 void ProcessSholatEverySecond();
 
+float TimezoneFloat();
+int32_t TimezoneMinutes();
+int32_t TimezoneSeconds();
 
 #endif

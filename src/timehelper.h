@@ -1,8 +1,8 @@
 #ifndef timehelper_h
 #define timehelper_h
 
-#include <TimeLib.h>
-#include "sholat.h"
+// #include <TimeLib.h>
+// #include "sholat.h"
 
 extern bool tick1000ms;
 
@@ -35,23 +35,14 @@ typedef enum timeSource
 extern TIMESOURCE _timeSource;
 
 
-char *getDateStr(time_t moment);
-char *getTimeStr(time_t moment);
+char *getDateStr();
+char *getTimeStr();
 char *getUptimeStr();
 char *getLastSyncStr();
 char *getNextSyncStr();
 
-extern uint16_t getInterval();
-extern uint16_t getShortInterval();
-
 time_t tmConvert_t(int YYYY, byte MM, byte DD, byte hh, byte mm, byte ss);
 
 void timeSetup();
-void timeLoop();
-
-void digitalClockDisplay();
-void digitalClockDisplay(time_t t);
-void printDigits(int digits);
-
 
 #endif

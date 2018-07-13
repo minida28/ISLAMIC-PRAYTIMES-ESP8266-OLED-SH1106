@@ -1165,8 +1165,8 @@ void sendTimeStatus(uint8_t mode)
   StaticJsonBuffer<512> jsonBuffer;
   JsonObject &root = jsonBuffer.createObject();
 
-  root[FPSTR(pgm_date)] = getDateStr(localTime);
-  root[FPSTR(pgm_time)] = getTimeStr(localTime);
+  root[FPSTR(pgm_date)] = getDateStr();
+  root[FPSTR(pgm_time)] = getTimeStr();
   root[FPSTR(pgm_uptime)] = getUptimeStr();
   if (_lastSyncd != 0)
   {

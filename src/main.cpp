@@ -25,8 +25,6 @@
 */
 
 #include <Arduino.h>
-// #include <stdint.h>
-#include <TimeLib.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include "sholat.h"
@@ -59,13 +57,13 @@
 // Include custom images
 #include "images.h"
 
-#define ESP_PIN_0 0 //D3
-#define ESP_PIN_1 1 //Tx
-#define ESP_PIN_2 2 //D4 -> Led on ESP8266
-#define ESP_PIN_3 3 //D9(Rx)
-#define ESP_PIN_4 4 //D2
-#define ESP_PIN_5 5 //D1
-#define ESP_PIN_9 9 //S2
+#define ESP_PIN_0 0   //D3
+#define ESP_PIN_1 1   //Tx
+#define ESP_PIN_2 2   //D4 -> Led on ESP8266
+#define ESP_PIN_3 3   //D9(Rx)
+#define ESP_PIN_4 4   //D2
+#define ESP_PIN_5 5   //D1
+#define ESP_PIN_9 9   //S2
 #define ESP_PIN_10 10 //S3
 #define ESP_PIN_12 12 //D6
 #define ESP_PIN_13 13 //D7
@@ -82,9 +80,9 @@
 #define IO_EXPANDER_PIN_6 6
 #define IO_EXPANDER_PIN_7 7
 
-#define SDA ESP_PIN_0 //D3
-#define SCL ESP_PIN_4 //D2
-#define BUZZER ESP_PIN_14 //D5
+#define SDA ESP_PIN_0               //D3
+#define SCL ESP_PIN_4               //D2
+#define BUZZER ESP_PIN_14           //D5
 #define MCU_INTERRUPT_PIN ESP_PIN_5 //D1
 
 #ifdef USE_IO_EXPANDER
@@ -135,15 +133,8 @@ int clockRadius = 23;
 const char ssid[] = "your_wifi_ssid";     //  your network SSID (name)
 const char pass[] = "your_wifi_password"; // your network password
 
-timeval tv;
-timespec tp;
-// time_t _now;
-uint32_t now_ms, now_us;
-
-struct tm *localtimeinfo;
-
 // utility function for digital clock display: prints leading 0
-char* twoDigits(int digits)
+char *twoDigits(int digits)
 {
   static char buf[3];
   snprintf(buf, sizeof(buf), "%02d", digits);
@@ -175,22 +166,36 @@ void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x
     display->drawLine(x2 + x, y2 + y, x3 + x, y3 + y);
   }
 
+  time_t rawtime;
+  time(&rawtime);
+
+  struct tm *tm;
+  tm = localtime(&rawtime);
+
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+
+  hour = tm->tm_hour;
+  minute = tm->tm_min;
+  second = tm->tm_sec;
+
   // display second hand
-  float angle = second() * 6;
+  float angle = second * 6;
   angle = (angle / 57.29577951); //Convert degrees to radians
   int x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 5))));
   int y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 5))));
   display->drawLine(clockCenterX + x, clockCenterY + y, x3 + x, y3 + y);
   //
   // display minute hand
-  angle = minute(localTime) * 6;
+  angle = minute * 6;
   angle = (angle / 57.29577951); //Convert degrees to radians
   x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 4))));
   y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 4))));
   display->drawLine(clockCenterX + x, clockCenterY + y, x3 + x, y3 + y);
   //
   // display hour hand
-  angle = hour(localTime) * 30 + int((minute(localTime) / 12) * 6);
+  angle = hour * 30 + int((minute / 12) * 6);
   angle = (angle / 57.29577951); //Convert degrees to radians
   x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 2))));
   y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 2))));
@@ -201,26 +206,43 @@ void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t 
 {
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_24);
-  display->drawString(clockCenterX + x, 24, getTimeStr(localTime));
+  display->drawString(clockCenterX + x, 24, getTimeStr());
 }
-
 
 void timeLeft(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
 {
-  char bufTimeLeft[14];  
-  snprintf(bufTimeLeft, sizeof(bufTimeLeft), "%d h %d m", HOUR, MINUTE);
-  char bufNextTime[16];
-  snprintf(bufNextTime, sizeof(bufNextTime), "to %s", sholatNameStr(NEXTTIMEID));
+  char buf[20];
+  if (HOUR != 0)
+  {
+    snprintf(buf, sizeof(buf), "%d h %d m", HOUR, MINUTE);
+  }
+  else
+  {
+    snprintf(buf, sizeof(buf), "%d m %d s", MINUTE, SECOND);
+  }
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_24);
-  display->drawString(64 + x, 14 + y, bufTimeLeft);
-  display->drawString(64 + x, 37 + y, bufNextTime);
+  display->drawString(64 + x, 14 + y, buf);
+  snprintf(buf, sizeof(buf), "to %s", sholatNameStr(NEXTTIMEID));
+  display->drawString(64 + x, 37 + y, buf);
 }
 
 void msOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
 {
-  char buf[6];  
-  snprintf(buf, sizeof(buf), "%s:%s", itoa(hour(localTime), buf, 10), twoDigits(minute(localTime)));
+  time_t rawtime;
+  time(&rawtime);
+
+  struct tm *tm;
+  tm = localtime(&rawtime);
+
+  uint8_t hour;
+  uint8_t minute;
+
+  hour = tm->tm_hour;
+  minute = tm->tm_min;
+
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%s:%s", itoa(hour, buf, 10), twoDigits(minute));
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_16);
   display->drawString(128, 0, buf);
@@ -229,10 +251,12 @@ void msOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
 //FrameCallback frames[] = { analogClockFrame, digitalClockFrame };
-FrameCallback frames[] = {timeLeft, digitalClockFrame, analogClockFrame};
+// FrameCallback frames[] = {timeLeft, digitalClockFrame, analogClockFrame};
+FrameCallback frames[] = {timeLeft, digitalClockFrame};
+// FrameCallback frames[] = {timeLeft};
 
 // how many frames are there?
-int frameCount = 3;
+int frameCount = 2;
 
 // Overlays are statically drawn on top of a frame eg. a clock
 //OverlayCallback overlays[] = { clockOverlay };
@@ -254,29 +278,15 @@ void p(const char *fmt, ...)
 
 Ticker ticker;
 
-void check_time_status()
-{
-  if (timeStatus() == timeNotSet)
-  {
-    Serial.println("TIME NOT SET");
-  }
-  else if (timeStatus() == timeNeedsSync)
-  {
-    Serial.println("TIME NEED SYNC");
-  }
-  else if (timeStatus() == timeSet)
-  {
-    Serial.println("TIME SET");
-  }
-}
-
 timeval cbtime; // time set in callback
 bool cbtime_set = false;
+bool updateSholat = false;
 
 void time_is_set(void)
 {
   gettimeofday(&cbtime, NULL);
   cbtime_set = true;
+  updateSholat = true;
   Serial.println("------------------ settimeofday() was called ------------------");
 }
 
@@ -326,6 +336,9 @@ void setup()
   // setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 3);
   // tzset();
   configTZ(TZ_Asia_Jakarta);
+  // configTZ(TZ_Asia_Kathmandu);
+
+  delay(1000);
 
   // timeSetup();
 
@@ -339,8 +352,8 @@ void setup()
   // flip the pin every 0.3s
   // ticker.attach(5, check_time_status);
 
-  process_sholat();
-  process_sholat_2nd_stage();
+  // process_sholat();
+  // process_sholat_2nd_stage();
 
   Serial.println(F("Setup completed\r\n"));
 }
@@ -368,6 +381,11 @@ void printTm(const char *what, const tm *tm)
   PTM(sec);
 }
 
+timeval tv;
+timespec tp;
+time_t now;
+uint32_t now_ms, now_us;
+
 void loop()
 {
   int remainingTimeBudget = ui.update();
@@ -382,16 +400,10 @@ void loop()
     if (millis() >= timer100ms + 100)
     {
       timer100ms = millis();
+
       gettimeofday(&tv, nullptr);
       clock_gettime(0, &tp);
-
-      utcTime = time(nullptr);
-      Serial.println();
-      Serial.println(utcTime);
-      localTime = utcTime + _configLocation.timezone / 10.0 * 3600;
-
-      setTime(utcTime);
-
+      now = time(nullptr);
       now_ms = millis();
       now_us = micros();
 
@@ -400,13 +412,13 @@ void loop()
       if (lastv != tv.tv_sec)
       {
         lastv = tv.tv_sec;
+
+        tick1000ms = true;
+
         Serial.println();
-        localtimeinfo = localtime(&utcTime);
-        printTm("localtime", localtimeinfo);
+        printTm("localtime", localtime(&now));
         Serial.println();
-        struct tm *gmtimeinfo = gmtime(&utcTime);
-        printTm("gmtime   ", gmtimeinfo);
-        Serial.println();
+        printTm("gmtime   ", gmtime(&now));
         Serial.println();
 
         // time from boot
@@ -429,48 +441,38 @@ void loop()
         Serial.print((uint32_t)tv.tv_usec);
         Serial.print("us");
 
-        // // EPOCH+tz+dst
-        // Serial.print(" localTime:");
-        // Serial.print((uint32_t)localtimeinfo);
-
-        Serial.print(" _now:");
-        Serial.print((uint32_t)utcTime);
+        // EPOCH+tz+dst
+        Serial.print(" time:");
+        Serial.println((uint32_t)now);
 
         // human readable
-        // Serial.print(" ctime:(UTC+");
-        // Serial.print((uint32_t)(TZ * 60 + DST_MN));
-        // Serial.print("mn)");
-        Serial.print(ctime(&utcTime));
-        Serial.print(" ");
-        Serial.print(mktime(localtimeinfo));
-        Serial.print(" ");
-        Serial.print(mktime(gmtimeinfo));
-        Serial.print(" ");
-        Serial.println(getenv("TZ"));
+        // Example: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)        
+        char buf[60];
+        strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT%z (%Z)", localtime(&now));
+        Serial.print("LOCAL date/time: ");
+        Serial.println(buf);
+        strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT", gmtime(&now));
+        Serial.print("GMT   date/time: ");
+        Serial.println(buf);
+        Serial.println();
       }
     }
 
-    utcTime = now();
-    // localTime = utcTime + _configLocation.timezone / 10.0 * 3600;
-
-    if (timeStatus() != timeNotSet)
+    if (updateSholat)
     {
-      //update the display only if time has changed
-      if (utcTime != prevDisplay)
-      {
-        prevDisplay = now();
-
-        tick1000ms = true;
-      }
+      updateSholat = false;
+      process_sholat();
+      // process_sholat_2nd_stage();
     }
 
     //update the display every 1000ms
     if (tick1000ms)
     {
-      if (timeStatus() != timeNotSet)
-      {
-        ProcessSholatEverySecond();
-      }
+      // if (timeStatus() != timeNotSet)
+      // {
+      //   ProcessSholatEverySecond();
+      // }
+      ProcessSholatEverySecond();
     }
 
     // timeLoop();
