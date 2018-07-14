@@ -37,26 +37,6 @@
 #include <coredecls.h> // settimeofday_cb()
 #include "EspGoodies.h"
 
-// Include the correct display library
-// For a connection via I2C using Wire include
-// #include <Wire.h>  // Only needed for Arduino 1.6.5 and earlier
-// #include "SSD1306.h" // alias for `#include "SSD1306Wire.h"`
-#include "SH1106.h" // alis for `#include "SH1106Wire.h"`
-// For a connection via I2C using brzo_i2c (must be installed) include
-// #include <brzo_i2c.h> // Only needed for Arduino 1.6.5 and earlier
-// #include "SSD1306Brzo.h"
-// #include "SH1106Brzo.h"
-// For a connection via SPI include
-// #include <SPI.h> // Only needed for Arduino 1.6.5 and earlier
-// #include "SSD1306Spi.h"
-// #include "SH1106SPi.h"
-
-// Include the UI lib
-#include "OLEDDisplayUi.h"
-
-// Include custom images
-#include "images.h"
-
 #define ESP_PIN_0 0   //D3
 #define ESP_PIN_1 1   //Tx
 #define ESP_PIN_2 2   //D4 -> Led on ESP8266
@@ -99,188 +79,440 @@
 
 #endif
 
-// Use the corresponding display class:
+#include <U8g2lib.h>
 
-// Initialize the OLED display using SPI
-// D5 -> CLK
-// D7 -> MOSI (DOUT)
-// D0 -> RES
-// D2 -> DC
-// D8 -> CS
-// SSD1306Spi        display(D0, D2, D8);
-// or
-// SH1106Spi         display(D0, D2);
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
 
-// Initialize the OLED display using brzo_i2c
-// D3 -> SDA
-// D5 -> SCL
-// SSD1306Brzo display(0x3c, D3, D5);
-// or
-// SH1106Brzo display(0x3c, D3, D5);
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
+// U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
 
-// Initialize the OLED display using Wire library
-// SSD1306  display(0x3c, D3, D5);
-SH1106 display(0x3c, SDA, SCL);
-
-OLEDDisplayUi ui(&display);
-
-int screenW = 128;
-int screenH = 64;
-int clockCenterX = screenW / 2;
-int clockCenterY = ((screenH - 16) / 2) + 16; // top yellow part is 16 px height
-int clockRadius = 23;
-
-const char ssid[] = "your_wifi_ssid";     //  your network SSID (name)
-const char pass[] = "your_wifi_password"; // your network password
-
-// utility function for digital clock display: prints leading 0
-char *twoDigits(int digits)
+void u8g2_prepare(void)
 {
-  static char buf[3];
-  snprintf(buf, sizeof(buf), "%02d", digits);
-  return buf;
+  // u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.setFont(u8g2_font_courB10_tf);
+  u8g2.setFontRefHeightExtendedText();
+  u8g2.setDrawColor(1);
+  u8g2.setFontPosTop();
+  u8g2.setFontDirection(0);
 }
 
-void clockOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
+void u8g2_box_frame(uint8_t a)
 {
+  u8g2.drawStr(0, 0, "drawBox");
+  u8g2.drawBox(5, 10, 20, 10);
+  u8g2.drawBox(10 + a, 15, 30, 7);
+  u8g2.drawStr(0, 30, "drawFrame");
+  u8g2.drawFrame(5, 10 + 30, 20, 10);
+  u8g2.drawFrame(10 + a, 15 + 30, 30, 7);
 }
 
-void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+void u8g2_disc_circle(uint8_t a)
 {
-  //  ui.disableIndicator();
-
-  // Draw the clock face
-  //  display->drawCircle(clockCenterX + x, clockCenterY + y, clockRadius);
-  display->drawCircle(clockCenterX + x, clockCenterY + y, 2);
-  //
-  //hour ticks
-  for (int z = 0; z < 360; z = z + 30)
-  {
-    //Begin at 0° and stop at 360°
-    float angle = z;
-    angle = (angle / 57.29577951); //Convert degrees to radians
-    int x2 = (clockCenterX + (sin(angle) * clockRadius));
-    int y2 = (clockCenterY - (cos(angle) * clockRadius));
-    int x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 8))));
-    int y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 8))));
-    display->drawLine(x2 + x, y2 + y, x3 + x, y3 + y);
-  }
-
-  time_t rawtime;
-  time(&rawtime);
-
-  struct tm *tm;
-  tm = localtime(&rawtime);
-
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
-
-  hour = tm->tm_hour;
-  minute = tm->tm_min;
-  second = tm->tm_sec;
-
-  // display second hand
-  float angle = second * 6;
-  angle = (angle / 57.29577951); //Convert degrees to radians
-  int x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 5))));
-  int y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 5))));
-  display->drawLine(clockCenterX + x, clockCenterY + y, x3 + x, y3 + y);
-  //
-  // display minute hand
-  angle = minute * 6;
-  angle = (angle / 57.29577951); //Convert degrees to radians
-  x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 4))));
-  y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 4))));
-  display->drawLine(clockCenterX + x, clockCenterY + y, x3 + x, y3 + y);
-  //
-  // display hour hand
-  angle = hour * 30 + int((minute / 12) * 6);
-  angle = (angle / 57.29577951); //Convert degrees to radians
-  x3 = (clockCenterX + (sin(angle) * (clockRadius - (clockRadius / 2))));
-  y3 = (clockCenterY - (cos(angle) * (clockRadius - (clockRadius / 2))));
-  display->drawLine(clockCenterX + x, clockCenterY + y, x3 + x, y3 + y);
+  u8g2.drawStr(0, 0, "drawDisc");
+  u8g2.drawDisc(10, 18, 9);
+  u8g2.drawDisc(24 + a, 16, 7);
+  u8g2.drawStr(0, 30, "drawCircle");
+  u8g2.drawCircle(10, 18 + 30, 9);
+  u8g2.drawCircle(24 + a, 16 + 30, 7);
 }
 
-void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+void u8g2_r_frame(uint8_t a)
 {
-  display->setTextAlignment(TEXT_ALIGN_CENTER);
-  display->setFont(ArialMT_Plain_24);
-  display->drawString(clockCenterX + x, 24, getTimeStr());
+  u8g2.drawStr(0, 0, "drawRFrame/Box");
+  u8g2.drawRFrame(5, 10, 40, 30, a + 1);
+  u8g2.drawRBox(50, 10, 25, 40, a + 1);
 }
 
-void timeLeft(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+// void u8g2_string(uint8_t a)
+// {
+//   u8g2.setFontDirection(0);
+//   u8g2.drawStr(30 + a, 31, " 0");
+//   u8g2.setFontDirection(1);
+//   u8g2.drawStr(30, 31 + a, " 90");
+//   u8g2.setFontDirection(2);
+//   u8g2.drawStr(30 - a, 31, " 180");
+//   u8g2.setFontDirection(3);
+//   u8g2.drawStr(30, 31 - a, " 270");
+// }
+
+void u8g2_string(uint16_t a)
 {
-  char buf[20];
+  u8g2.setFontDirection(0);
+  char buf[36];
   if (HOUR != 0)
   {
-    snprintf(buf, sizeof(buf), "%d h %d m", HOUR, MINUTE);
+    snprintf(buf, sizeof(buf), "%d jam %d menit menuju %s", HOUR, MINUTE, sholatNameStr(NEXTTIMEID));
   }
   else
   {
-    snprintf(buf, sizeof(buf), "%d m %d s", MINUTE, SECOND);
+    snprintf(buf, sizeof(buf), "%d jam %d menit menuju %s", MINUTE, SECOND, sholatNameStr(NEXTTIMEID));
   }
-  display->setTextAlignment(TEXT_ALIGN_CENTER);
-  display->setFont(ArialMT_Plain_24);
-  display->drawString(64 + x, 14 + y, buf);
-  snprintf(buf, sizeof(buf), "to %s", sholatNameStr(NEXTTIMEID));
-  display->drawString(64 + x, 37 + y, buf);
+  u8g2.drawStr(128 - a, 0, buf);
 }
 
-void msOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
+void u8g2_line(uint8_t a)
 {
-  time_t rawtime;
-  time(&rawtime);
-
-  struct tm *tm;
-  tm = localtime(&rawtime);
-
-  uint8_t hour;
-  uint8_t minute;
-
-  hour = tm->tm_hour;
-  minute = tm->tm_min;
-
-  char buf[6];
-  snprintf(buf, sizeof(buf), "%s:%s", itoa(hour, buf, 10), twoDigits(minute));
-  display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  display->setFont(ArialMT_Plain_16);
-  display->drawString(128, 0, buf);
+  u8g2.drawStr(0, 0, "drawLine");
+  u8g2.drawLine(7 + a, 10, 40, 55);
+  u8g2.drawLine(7 + a * 2, 10, 60, 55);
+  u8g2.drawLine(7 + a * 3, 10, 80, 55);
+  u8g2.drawLine(7 + a * 4, 10, 100, 55);
 }
 
-// This array keeps function pointers to all frames
-// frames are the single views that slide in
-//FrameCallback frames[] = { analogClockFrame, digitalClockFrame };
-// FrameCallback frames[] = {timeLeft, digitalClockFrame, analogClockFrame};
-FrameCallback frames[] = {timeLeft, digitalClockFrame};
-// FrameCallback frames[] = {timeLeft};
-
-// how many frames are there?
-int frameCount = 2;
-
-// Overlays are statically drawn on top of a frame eg. a clock
-//OverlayCallback overlays[] = { clockOverlay };
-OverlayCallback overlays[] = {msOverlay};
-int overlaysCount = 1;
-
-// double times[sizeof(TimeName) / sizeof(char*)];
-
-//void p(char *fmt, ... ) {
-void p(const char *fmt, ...)
+void u8g2_triangle(uint8_t a)
 {
-  char tmp[128]; // resulting string limited to 128 chars
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(tmp, 128, fmt, args);
-  va_end(args);
-  Serial.print(tmp);
+  uint16_t offset = a;
+  u8g2.drawStr(0, 0, "drawTriangle");
+  u8g2.drawTriangle(14, 7, 45, 30, 10, 40);
+  u8g2.drawTriangle(14 + offset, 7 - offset, 45 + offset, 30 - offset, 57 + offset, 10 - offset);
+  u8g2.drawTriangle(57 + offset * 2, 10, 45 + offset * 2, 30, 86 + offset * 2, 53);
+  u8g2.drawTriangle(10 + offset, 40 + offset, 45 + offset, 30 + offset, 86 + offset, 53 + offset);
 }
 
-Ticker ticker;
+void u8g2_ascii_1()
+{
+  char s[2] = " ";
+  uint8_t x, y;
+  u8g2.drawStr(0, 0, "ASCII page 1");
+  for (y = 0; y < 6; y++)
+  {
+    for (x = 0; x < 16; x++)
+    {
+      s[0] = y * 16 + x + 32;
+      u8g2.drawStr(x * 7, y * 10 + 10, s);
+    }
+  }
+}
+
+void u8g2_ascii_2()
+{
+  char s[2] = " ";
+  uint8_t x, y;
+  u8g2.drawStr(0, 0, "ASCII page 2");
+  for (y = 0; y < 6; y++)
+  {
+    for (x = 0; x < 16; x++)
+    {
+      s[0] = y * 16 + x + 160;
+      u8g2.drawStr(x * 7, y * 10 + 10, s);
+    }
+  }
+}
+
+void u8g2_extra_page(uint8_t a)
+{
+  u8g2.drawStr(0, 0, "Unicode");
+  u8g2.setFont(u8g2_font_unifont_t_symbols);
+  u8g2.setFontPosTop();
+  u8g2.drawUTF8(0, 24, "☀ ☁");
+  switch (a)
+  {
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+    u8g2.drawUTF8(a * 3, 36, "☂");
+    break;
+  case 4:
+  case 5:
+  case 6:
+  case 7:
+    u8g2.drawUTF8(a * 3, 36, "☔");
+    break;
+  }
+}
+
+#define cross_width 24
+#define cross_height 24
+static const unsigned char cross_bits[] U8X8_PROGMEM = {
+    0x00,
+    0x18,
+    0x00,
+    0x00,
+    0x24,
+    0x00,
+    0x00,
+    0x24,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x81,
+    0x00,
+    0x00,
+    0x81,
+    0x00,
+    0xC0,
+    0x00,
+    0x03,
+    0x38,
+    0x3C,
+    0x1C,
+    0x06,
+    0x42,
+    0x60,
+    0x01,
+    0x42,
+    0x80,
+    0x01,
+    0x42,
+    0x80,
+    0x06,
+    0x42,
+    0x60,
+    0x38,
+    0x3C,
+    0x1C,
+    0xC0,
+    0x00,
+    0x03,
+    0x00,
+    0x81,
+    0x00,
+    0x00,
+    0x81,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x42,
+    0x00,
+    0x00,
+    0x24,
+    0x00,
+    0x00,
+    0x24,
+    0x00,
+    0x00,
+    0x18,
+    0x00,
+};
+
+#define cross_fill_width 24
+#define cross_fill_height 24
+static const unsigned char cross_fill_bits[] U8X8_PROGMEM = {
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x18,
+    0x00,
+    0x18,
+    0x64,
+    0x00,
+    0x26,
+    0x84,
+    0x00,
+    0x21,
+    0x08,
+    0x81,
+    0x10,
+    0x08,
+    0x42,
+    0x10,
+    0x10,
+    0x3C,
+    0x08,
+    0x20,
+    0x00,
+    0x04,
+    0x40,
+    0x00,
+    0x02,
+    0x80,
+    0x00,
+    0x01,
+    0x80,
+    0x18,
+    0x01,
+    0x80,
+    0x18,
+    0x01,
+    0x80,
+    0x00,
+    0x01,
+    0x40,
+    0x00,
+    0x02,
+    0x20,
+    0x00,
+    0x04,
+    0x10,
+    0x3C,
+    0x08,
+    0x08,
+    0x42,
+    0x10,
+    0x08,
+    0x81,
+    0x10,
+    0x84,
+    0x00,
+    0x21,
+    0x64,
+    0x00,
+    0x26,
+    0x18,
+    0x00,
+    0x18,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+};
+
+#define cross_block_width 14
+#define cross_block_height 14
+static const unsigned char cross_block_bits[] U8X8_PROGMEM = {
+    0xFF,
+    0x3F,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0xC1,
+    0x20,
+    0xC1,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0x01,
+    0x20,
+    0xFF,
+    0x3F,
+};
+
+void u8g2_bitmap_overlay(uint8_t a)
+{
+  uint8_t frame_size = 28;
+
+  u8g2.drawStr(0, 0, "Bitmap overlay");
+
+  u8g2.drawStr(0, frame_size + 12, "Solid / transparent");
+  u8g2.setBitmapMode(false /* solid */);
+  u8g2.drawFrame(0, 10, frame_size, frame_size);
+  u8g2.drawXBMP(2, 12, cross_width, cross_height, cross_bits);
+  if (a & 4)
+    u8g2.drawXBMP(7, 17, cross_block_width, cross_block_height, cross_block_bits);
+
+  u8g2.setBitmapMode(true /* transparent*/);
+  u8g2.drawFrame(frame_size + 5, 10, frame_size, frame_size);
+  u8g2.drawXBMP(frame_size + 7, 12, cross_width, cross_height, cross_bits);
+  if (a & 4)
+    u8g2.drawXBMP(frame_size + 12, 17, cross_block_width, cross_block_height, cross_block_bits);
+}
+
+void u8g2_bitmap_modes(uint8_t transparent)
+{
+  const uint8_t frame_size = 24;
+
+  u8g2.drawBox(0, frame_size * 0.5, frame_size * 5, frame_size);
+  u8g2.drawStr(frame_size * 0.5, 50, "Black");
+  u8g2.drawStr(frame_size * 2, 50, "White");
+  u8g2.drawStr(frame_size * 3.5, 50, "XOR");
+
+  if (!transparent)
+  {
+    u8g2.setBitmapMode(false /* solid */);
+    u8g2.drawStr(0, 0, "Solid bitmap");
+  }
+  else
+  {
+    u8g2.setBitmapMode(true /* transparent*/);
+    u8g2.drawStr(0, 0, "Transparent bitmap");
+  }
+  u8g2.setDrawColor(0); // Black
+  u8g2.drawXBMP(frame_size * 0.5, 24, cross_width, cross_height, cross_bits);
+  u8g2.setDrawColor(1); // White
+  u8g2.drawXBMP(frame_size * 2, 24, cross_width, cross_height, cross_bits);
+  u8g2.setDrawColor(2); // XOR
+  u8g2.drawXBMP(frame_size * 3.5, 24, cross_width, cross_height, cross_bits);
+}
+
+uint8_t draw_state = 24;
+
+void draw(void)
+{
+  u8g2_prepare();
+  switch (draw_state >> 3)
+  {
+  case 0:
+    u8g2_box_frame(draw_state & 7);
+    break;
+  case 1:
+    u8g2_disc_circle(draw_state & 7);
+    break;
+  case 2:
+    u8g2_r_frame(draw_state & 7);
+    break;
+  case 3:
+    u8g2_string(draw_state & 7);
+    break;
+  case 4:
+    u8g2_line(draw_state & 7);
+    break;
+  case 5:
+    u8g2_triangle(draw_state & 7);
+    break;
+  case 6:
+    u8g2_ascii_1();
+    break;
+  case 7:
+    u8g2_ascii_2();
+    break;
+  case 8:
+    u8g2_extra_page(draw_state & 7);
+    break;
+  case 9:
+    u8g2_bitmap_modes(0);
+    break;
+  case 10:
+    u8g2_bitmap_modes(1);
+    break;
+  case 11:
+    u8g2_bitmap_overlay(draw_state & 7);
+    break;
+  }
+}
 
 timeval cbtime; // time set in callback
 bool cbtime_set = false;
 bool updateSholat = false;
+
+bool tick100ms = 0;
+bool tick3000ms = 0;
 
 void time_is_set(void)
 {
@@ -298,37 +530,6 @@ void setup()
   Serial.print("IP number assigned by DHCP is ");
   Serial.println(WiFi.localIP());
 
-  // The ESP is capable of rendering 60fps in 80Mhz mode
-  // but that won't give you much time for anything else
-  // run it in 160Mhz mode or just set it to 30 fps
-  ui.setTargetFPS(60);
-
-  // Customize the active and inactive symbol
-  ui.setActiveSymbol(activeSymbol);
-  ui.setInactiveSymbol(inactiveSymbol);
-
-  // You can change this to
-  // TOP, LEFT, BOTTOM, RIGHT
-  ui.setIndicatorPosition(TOP);
-
-  // Defines where the first frame is located in the bar.
-  ui.setIndicatorDirection(LEFT_RIGHT);
-
-  // You can change the transition that is used
-  // SLIDE_LEFT, SLIDE_RIGHT, SLIDE_UP, SLIDE_DOWN
-  ui.setFrameAnimation(SLIDE_LEFT);
-
-  // Add frames
-  ui.setFrames(frames, frameCount);
-
-  // Add overlays
-  ui.setOverlays(overlays, overlaysCount);
-
-  // Initialising the UI will init the display too.
-  ui.init();
-
-  display.flipScreenVertically();
-
   settimeofday_cb(time_is_set);
 
   // configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
@@ -338,22 +539,13 @@ void setup()
   configTZ(TZ_Asia_Jakarta);
   // configTZ(TZ_Asia_Kathmandu);
 
-  delay(1000);
+  Wire.begin(SDA, SCL);
+  u8g2.begin();
+  // flip screen, if required
+  // u8g2.setRot180();
 
-  // timeSetup();
-
-  //  unsigned long secsSinceStart = millis();
-  //  // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-  //  const unsigned long seventyYears = 2208988800UL;
-  //  // subtract seventy years:
-  //  unsigned long epoch = secsSinceStart - seventyYears * SECS_PER_HOUR;
-  //  setTime(epoch);
-
-  // flip the pin every 0.3s
-  // ticker.attach(5, check_time_status);
-
-  // process_sholat();
-  // process_sholat_2nd_stage();
+  // assign default color value
+  // draw_color = 1; // pixel on
 
   Serial.println(F("Setup completed\r\n"));
 }
@@ -388,18 +580,53 @@ uint32_t now_ms, now_us;
 
 void loop()
 {
-  int remainingTimeBudget = ui.update();
-
-  if (remainingTimeBudget > 0)
-  {
-    // You can do some work here
-    // Don't do stuff if you are below your
-    // time budget.
-
     static uint32_t timer100ms = 0;
-    if (millis() >= timer100ms + 100)
+    if (millis() >= timer100ms + 50)
     {
       timer100ms = millis();
+      tick100ms = true;
+    }
+
+    static uint32_t timer3000ms = 0;
+    if (millis() >= timer3000ms + 3000)
+    {
+      timer3000ms = millis();
+      tick3000ms = true;
+    }
+
+    if (updateSholat)
+    {
+      updateSholat = false;
+      process_sholat();
+      // process_sholat_2nd_stage();
+    }
+
+    if (tick100ms)
+    {
+      tick100ms = false;
+
+      // picture loop
+      u8g2.clearBuffer();
+
+      static uint16_t x = 0;
+      x++;
+      if (x >= 256)
+      {
+        x = 0;
+      }
+      u8g2_prepare();
+      u8g2_string(x);
+
+      u8g2.sendBuffer();
+
+      // // increase the state
+      // draw_state++;
+      // if (draw_state >= 4 * 8)
+      // {
+      //   draw_state = 24;
+      // }
+
+
 
       gettimeofday(&tv, nullptr);
       clock_gettime(0, &tp);
@@ -446,7 +673,7 @@ void loop()
         Serial.println((uint32_t)now);
 
         // human readable
-        // Printed format: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)        
+        // Printed format: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)
         char buf[60];
         strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT%z (%Z)", localtime(&now));
         Serial.print("LOCAL date/time: ");
@@ -458,27 +685,10 @@ void loop()
       }
     }
 
-    if (updateSholat)
-    {
-      updateSholat = false;
-      process_sholat();
-      // process_sholat_2nd_stage();
-    }
-
     //update the display every 1000ms
     if (tick1000ms)
     {
-      // if (timeStatus() != timeNotSet)
-      // {
-      //   ProcessSholatEverySecond();
-      // }
+      tick1000ms = false;
       ProcessSholatEverySecond();
     }
-
-    // timeLoop();
-
-    tick1000ms = false;
-
-    delay(remainingTimeBudget);
-  }
 }

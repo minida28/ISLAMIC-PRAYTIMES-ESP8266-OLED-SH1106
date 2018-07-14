@@ -34,17 +34,9 @@ uint8_t MINUTE;
 uint8_t SECOND;
 uint8_t CURRENTTIMEID, NEXTTIMEID;
 
-char bufHOUR[2];
-char bufMINUTE[2];
-char bufSECOND[2];
-
-// utc
-// time_t t_utc = time(nullptr);
-// struct tm *tm_utc = gmtime(&t_utc);
-
-// // local
-// time_t t_local = t_utc + _configLocation.timezone / 10.0 * 3600;
-// struct tm *tm_local = localtime(&t_utc);
+char bufHOUR[3];
+char bufMINUTE[3];
+char bufSECOND[3];
 
 time_t currentSholatTime = 0;
 time_t nextSholatTime = 0;
@@ -60,7 +52,7 @@ char *sholatNameStr(uint8_t id)
   time_t t_utc = time(nullptr);
   struct tm *tm_local = localtime(&t_utc);
 
-  if (tm_local->tm_wday == 6 && id == Dhuhr)
+  if (tm_local->tm_wday == 5 && id == Dhuhr)
   {
     char JUMUAH[] = "JUMAT";
     strcpy(bufCommonSholat, JUMUAH);

@@ -8,9 +8,9 @@ extern uint8_t MINUTE;
 extern uint8_t SECOND;
 extern uint8_t CURRENTTIMEID, NEXTTIMEID;
 
-extern char bufHOUR[2];
-extern char bufMINUTE[2];
-extern char bufSECOND[2];
+extern char bufHOUR[3];
+extern char bufMINUTE[3];
+extern char bufSECOND[3];
 
 extern char sholatTimeYesterdayArray[TimesCount][6];
 extern char sholatTimeArray[TimesCount][6];
