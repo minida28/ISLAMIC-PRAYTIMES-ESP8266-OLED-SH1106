@@ -17,8 +17,6 @@
 //#include "ArduinoJson.h"
 //#include "config.h"
 
-
-
 #include "sholat.h"
 #include "sholathelper.h"
 #include "timehelper.h"
@@ -43,8 +41,11 @@
 
 #define PROGMEM_T __attribute__((section(".irom.text.template")))
 
-#define PRINT(fmt, ...) \
-  { static const char pfmt[] PROGMEM_T = fmt; PRINTPORT.printf_P(pfmt, ## __VA_ARGS__); }
+#define PRINT(fmt, ...)                       \
+  {                                           \
+    static const char pfmt[] PROGMEM_T = fmt; \
+    PRINTPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+  }
 
 #ifndef RELEASE
 #define DEBUGLOG(fmt, ...)                    \
@@ -117,7 +118,6 @@ uint32_t clientID;
 
 bool clientVisitConfigRunningLedPage = false;
 bool clientVisitConfigSholatPage = false;
-
 
 bool clientVisitStatusNetworkPage = false;
 bool clientVisitStatusTimePage = false;
@@ -225,8 +225,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
       if (info->opcode == WS_TEXT)
       {
-        
-      }    
+      }
       else
       {
         char buff[3];
@@ -468,8 +467,6 @@ void AsyncWSBegin()
   }
 
   //  loadHTTPAuth();
-
-
 
   // _configAP.APenable = true;
 
@@ -871,7 +868,6 @@ void AsyncWSBegin()
     send_config_sholat(request);
   });
 
-
   server.on("/status/network", [](AsyncWebServerRequest *request) {
     DEBUGASYNCWS("%s\r\n", request->url().c_str());
 
@@ -915,15 +911,17 @@ void AsyncWSBegin()
     StaticJsonBuffer<512> jsonBuffer;
     JsonObject &root = jsonBuffer.createObject();
 
-    root["d"] = day(localTime);
-    root["m"] = month(localTime);
-    root["y"] = year(localTime);
-    root["hr"] = hour(localTime);
-    root["min"] = minute(localTime);
-    root["sec"] = second(localTime);
+    tm *tm = localtime(&now);
+
+    root["d"] = tm->tm_mday;
+    root["m"] = tm->tm_mon;
+    root["y"] = tm->tm_year;
+    root["hr"] = tm->tm_hour;
+    root["min"] = tm->tm_min;
+    root["sec"] = tm->tm_sec;
     root["tz"] = _configLocation.timezone;
-    root["utc"] = utcTime;
-    root["local"] = localTime;
+    root["utc"] = now;
+    root["local"] = mktime(tm);
 
     size_t len = root.measureLength();
     char response[len + 1];
@@ -961,7 +959,7 @@ void onWiFiConnected(WiFiEventStationModeConnected data)
 }
 
 // Start NTP only after IP network is connected
-void onWifiGotIP (WiFiEventStationModeGotIP ipInfo)
+void onWifiGotIP(WiFiEventStationModeGotIP ipInfo)
 // void onWifiGotIP(const WiFiEventStationModeGotIP &event)
 {
   wifiGotIpFlag = true;
@@ -1251,15 +1249,17 @@ void sendDateTime(uint8_t mode)
   StaticJsonBuffer<512> jsonBuffer;
   JsonObject &root = jsonBuffer.createObject();
 
-  root["d"] = day(localTime);
-  root["m"] = month(localTime);
-  root["y"] = year(localTime);
-  root["hr"] = hour(localTime);
-  root["min"] = minute(localTime);
-  root["sec"] = second(localTime);
+  tm *tm = localtime(&now);
+
+  root["d"] = tm->tm_mday;
+  root["m"] = tm->tm_mon;
+  root["y"] = tm->tm_year;
+  root["hr"] = tm->tm_hour;
+  root["min"] = tm->tm_min;
+  root["sec"] = tm->tm_sec;
   root["tz"] = _configLocation.timezone;
-  root["utc"] = utcTime;
-  root["local"] = localTime;
+  root["utc"] = now;
+  root["local"] = mktime(tm);
 
   size_t len = root.measurePrettyLength();
   char buf[len + 1];
@@ -1749,10 +1749,6 @@ void send_config_sholat(AsyncWebServerRequest *request)
   request->send(response);
 }
 
-
-
-
-
 void sendConfigSholat(uint8_t mode)
 {
   DEBUGASYNCWS("%s\r\n", __PRETTY_FUNCTION__);
@@ -2205,7 +2201,6 @@ bool load_config_sholat()
 
   return true;
 }
-
 
 //*************************
 // LOAD HTTPAUTH CONFIG

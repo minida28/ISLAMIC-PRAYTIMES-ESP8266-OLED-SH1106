@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "sholat.h"
 #include "sholathelper.h"
-// #include "timehelper.h"
+#include "timehelper.h"
 #include "progmemmatrix.h"
 
 #define PROGMEM_T __attribute__((section(".irom.text.template")))
@@ -32,6 +32,8 @@ PrayerTimes sholat;
 uint8_t HOUR;
 uint8_t MINUTE;
 uint8_t SECOND;
+uint8_t ceilHOUR;
+uint8_t ceilMINUTE;
 uint8_t CURRENTTIMEID, NEXTTIMEID;
 
 char bufHOUR[3];
@@ -49,8 +51,8 @@ char bufCommonSholat[30];
 
 char *sholatNameStr(uint8_t id)
 {
-  time_t t_utc = time(nullptr);
-  struct tm *tm_local = localtime(&t_utc);
+  // time_t t_utc = time(nullptr);
+  struct tm *tm_local = localtime(&now);
 
   if (tm_local->tm_wday == 5 && id == Dhuhr)
   {
@@ -102,15 +104,15 @@ void process_sholat()
   double lon = _configLocation.longitude;
   float tZ = TimezoneFloat();
 
-  time_t now;
+  // time_t now;
   struct tm *tm;
   int year;
   int month;
   int day;
 
-  time(&now);
+  // time(&now);
 
-  //CALCULATE YESTERDAY'S SHOLAT TIMES    
+  //CALCULATE YESTERDAY'S SHOLAT TIMES
   tm = localtime(&now);
 
   tm->tm_mday--; // alter tm struct to yesterday
@@ -163,7 +165,7 @@ void process_sholat()
 
   // CALCULATE TODAY'S SHOLAT TIMES
   tm = localtime(&now);
-  
+
   year = tm->tm_year + 1900;
   month = tm->tm_mon + 1;
   day = tm->tm_mday;
@@ -264,7 +266,9 @@ void process_sholat_2nd_stage()
 
   time_t s_tm = 0;
 
-  time_t t_utc = time(nullptr);
+  // time_t t_utc;
+  
+  // time(&now);
 
   //int hrNextTime, mntNextTime;
 
@@ -316,7 +320,7 @@ void process_sholat_2nd_stage()
 
       if (timestamp_current_today < timestamp_next_today)
       {
-        if (t_utc <= timestamp_current_today && t_utc < timestamp_next_today)
+        if (now <= timestamp_current_today && now < timestamp_next_today)
         {
           CURRENTTIMEID = tempPreviousID;
           NEXTTIMEID = tempCurrentID;
@@ -324,7 +328,7 @@ void process_sholat_2nd_stage()
 
           break;
         }
-        else if (t_utc > timestamp_current_today && t_utc <= timestamp_next_today)
+        else if (now > timestamp_current_today && now <= timestamp_next_today)
         {
           CURRENTTIMEID = tempCurrentID;
           NEXTTIMEID = tempNextID;
@@ -335,7 +339,7 @@ void process_sholat_2nd_stage()
       }
       else if (timestamp_current_today > timestamp_next_today)
       {
-        if (t_utc >= timestamp_current_today && t_utc < timestamp_next_tomorrow)
+        if (now >= timestamp_current_today && now < timestamp_next_tomorrow)
         {
           CURRENTTIMEID = tempCurrentID;
           NEXTTIMEID = tempNextID;
@@ -368,8 +372,8 @@ void process_sholat_2nd_stage()
   }
   else if (NEXTTIMEID < CURRENTTIMEID)
   {
-    time_t t_utc = time(nullptr);
-    struct tm *tm_utc = gmtime(&t_utc);
+    // time_t t_utc = time(nullptr);
+    struct tm *tm_utc = gmtime(&now);
 
     if (tm_utc->tm_hour >= 12) // is PM ?
     {
@@ -386,8 +390,8 @@ void process_sholat_2nd_stage()
     }
   }
 
-  time_t timeDiff = s_tm - t_utc;
-  DEBUGLOG("s_tm: %lu, t_utc: %lu, timeDiff: %lu\r\n", s_tm, t_utc, timeDiff);
+  time_t timeDiff = s_tm - now;
+  DEBUGLOG("s_tm: %lu, now: %lu, timeDiff: %lu\r\n", s_tm, now, timeDiff);
 
   // uint16_t days;
   // uint8_t hr;
@@ -412,36 +416,41 @@ void process_sholat_2nd_stage()
   // MINUTE = floor(fmod(timeDiff, 3600.0) / 60.0);
   // SECOND = fmod(timeDiff, 60.0);
 
-  static int SECOND_old = 100;
+  dtostrf(SECOND, 0, 0, bufSECOND);
+  dtostrf(MINUTE, 0, 0, bufMINUTE);
+  dtostrf(HOUR, 0, 0, bufHOUR);
 
-  if (SECOND != SECOND_old)
+  ceilMINUTE = MINUTE;
+  ceilHOUR = HOUR;
+
+  if (SECOND > 0)
   {
-    SECOND_old = SECOND;
-    dtostrf(SECOND, 1, 0, bufSECOND);
-    dtostrf(MINUTE, 1, 0, bufMINUTE);
-    dtostrf(HOUR, 1, 0, bufHOUR);
+    ceilMINUTE++;
+    if (ceilMINUTE == 60)
+    {
+      ceilHOUR++;
+      ceilMINUTE = 0;
+    }
   }
 
   if (SECOND == 0)
   {
-    if (HOUR != 0 || MINUTE != 0)
+    if (ceilHOUR != 0 || ceilMINUTE != 0)
     {
-      if (HOUR != 0)
+      if (ceilHOUR != 0)
       {
-        Serial.print(bufHOUR);
-        Serial.print(F(" jam "));
+        PRINT("%d jam ", ceilHOUR);
       }
-      Serial.print(bufMINUTE);
-      Serial.print(F(" min menuju "));
-      Serial.println(sholatNameStr(NEXTTIMEID));
+      if (ceilMINUTE != 0)
+      {
+        PRINT("%d menit ", ceilMINUTE);
+      }
+      PRINT("menuju %s\r\n", sholatNameStr(NEXTTIMEID));
     }
-    //else if (HOUR == 0 && MINUTE == 0) {
     else if (HOUR == 0 && MINUTE == 0)
     {
-      Serial.print(F("Waktu "));
-      Serial.print(sholatNameStr(NEXTTIMEID));
-      Serial.println(F(" telah masuk!"));
-      Serial.println(F("Dirikanlah sholat tepat waktu."));
+      PRINT("Waktu %s telah masuk!\r\n", sholatNameStr(NEXTTIMEID));
+      PRINT("Dirikanlah sholat tepat waktu.\r\n");
     }
   }
 }

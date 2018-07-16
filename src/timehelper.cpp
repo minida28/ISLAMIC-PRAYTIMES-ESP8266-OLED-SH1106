@@ -23,7 +23,7 @@ bool tick1000ms = false;
 
 bool NTP_OK = false;
 
-time_t utcTime, localTime;
+time_t now;
 time_t _lastSyncd; ///< Stored time of last successful sync
 time_t _firstSync; ///< Stored time of first successful sync after boot
 time_t _lastBoot;
@@ -127,7 +127,7 @@ char *getNextSyncStr()
 
   time_t nextsync;
 
-  nextsync = _lastSyncd - utcTime + syncInterval;
+  nextsync = _lastSyncd - now + syncInterval;
 
   uint16_t days;
   uint8_t hours;

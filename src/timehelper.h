@@ -2,13 +2,13 @@
 #define timehelper_h
 
 // #include <TimeLib.h>
-// #include "sholat.h"
+// #include <time.h>
 
 extern bool tick1000ms;
 
 
 
-extern time_t utcTime, localTime;
+extern time_t now;
 extern time_t _lastSyncd; ///< Stored time of last successful sync
 extern time_t _firstSync; ///< Stored time of first successful sync after boot
 extern time_t _lastBoot;

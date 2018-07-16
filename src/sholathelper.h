@@ -1,11 +1,15 @@
 #ifndef sholathelper_h
 #define sholathelper_h
 
+#include <Arduino.h>
+
 extern PrayerTimes sholat;
 
 extern uint8_t HOUR;
 extern uint8_t MINUTE;
 extern uint8_t SECOND;
+extern uint8_t ceilHOUR;
+extern uint8_t ceilMINUTE;
 extern uint8_t CURRENTTIMEID, NEXTTIMEID;
 
 extern char bufHOUR[3];

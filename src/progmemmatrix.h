@@ -1,6 +1,8 @@
 #ifndef _PROGMEMMATRIX_H
 #define _PROGMEMMATRIX_H
 
+#include <Arduino.h>
+
 const char Page_WaitAndReload[] PROGMEM = R"=====(
 <p>Rebooting...</p>
 <p>Please wait in <strong><span id="counter">20</span></strong> second(s).</p>
@@ -17,13 +19,22 @@ setInterval(function(){ countdown(); },1000);
 </script>
 )=====";
 
-const char fajrStr[] PROGMEM = "Fajr";
-const char syuruqStr[] PROGMEM = "Syuruq";
-const char dhuhrStr[] PROGMEM = "Dhuhr";
-const char ashrStr[] PROGMEM = "Ashar";
-const char sunsetStr[] PROGMEM = "Sunset";
-const char maghribStr[] PROGMEM = "Maghrib";
-const char isyaStr[] PROGMEM = "Isya";
+// const char fajrStr[] PROGMEM = "Fajr";
+// const char syuruqStr[] PROGMEM = "Syuruq";
+// const char dhuhrStr[] PROGMEM = "Dhuhr";
+// const char ashrStr[] PROGMEM = "Ashar";
+// const char sunsetStr[] PROGMEM = "Sunset";
+// const char maghribStr[] PROGMEM = "Maghrib";
+// const char isyaStr[] PROGMEM = "Isya";
+// const char sholatNameCountStr[] PROGMEM = "TIMESCOUNT";
+
+const char fajrStr[] PROGMEM = "SUBUH";
+const char syuruqStr[] PROGMEM = "SYURUQ";
+const char dhuhrStr[] PROGMEM = "DHUHR";
+const char ashrStr[] PROGMEM = "ASHAR";
+const char sunsetStr[] PROGMEM = "SUNSET";
+const char maghribStr[] PROGMEM = "MAGHRIB";
+const char isyaStr[] PROGMEM = "ISYA";
 const char sholatNameCountStr[] PROGMEM = "TIMESCOUNT";
 
 const char *const sholatName_P[] PROGMEM =
