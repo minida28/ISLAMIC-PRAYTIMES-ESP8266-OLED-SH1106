@@ -30,6 +30,7 @@
 #include "sholat.h"
 #include "sholathelper.h"
 #include "timehelper.h"
+#include "rtchelper.h"
 #include <Ticker.h>
 #include <StreamString.h>
 #include <time.h>
@@ -1600,6 +1601,8 @@ void setup()
   // assign default color value
   // draw_color = 1; // pixel on
 
+  rtcSetup();
+
   Serial.println(F("Setup completed\r\n"));
 }
 
@@ -1708,12 +1711,16 @@ void loop()
     // Printed format: Wed Oct 05 2011 16:48:00 GMT+0200 (CEST)
     char buf[60];
     strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT%z (%Z)", localtime(&now));
-    Serial.print("LOCAL date/time: ");
+    Serial.print("NTP LOCAL date/time: ");
     Serial.println(buf);
     strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT", gmtime(&now));
-    Serial.print("GMT   date/time: ");
+    Serial.print("NTP GMT   date/time: ");
     Serial.println(buf);
     Serial.println();
+    time_t rtc = get_time_from_rtc();
+    strftime(buf, sizeof(buf), "%a %b %d %Y %X GMT", gmtime(&rtc));
+    Serial.print("RTC GMT   date/time: ");
+    Serial.println(buf);
   }
 
   // update sholat must be below / after updating the timestamp

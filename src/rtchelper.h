@@ -19,5 +19,8 @@ time_t get_time_from_rtc();
 
 extern RtcDS3231<TwoWire> Rtc;
 
+void printRtcTime(const RtcDateTime &dt);
+char *getDateTimeString(time_t moment);
+void rtcSetup();
 
 #endif
