@@ -60,10 +60,10 @@
 #define IO_EXPANDER_PIN_6 6
 #define IO_EXPANDER_PIN_7 7
 
-#define SDA ESP_PIN_0               //D3
-#define SCL ESP_PIN_4               //D2
+#define SDA ESP_PIN_4               //D2
+#define SCL ESP_PIN_5               //D1
 #define BUZZER ESP_PIN_14           //D5
-#define MCU_INTERRUPT_PIN ESP_PIN_5 //D1
+#define MCU_INTERRUPT_PIN ESP_PIN_0 //D3
 
 #ifdef USE_IO_EXPANDER
 
@@ -99,19 +99,21 @@ timespec tp;
 // time_t now;
 uint32_t now_ms, now_us;
 
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2_2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
+// U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2_2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 // U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
 
-void u8g2_prepare(void)
-{
-  // u8g2.setFont(u8g2_font_6x10_tf);
-  // u8g2.setFont(u8g2_font_courB10_tf);
-  u8g2.setFont(u8g2_font_profont15_tf);
-  u8g2.setFontRefHeightExtendedText();
-  u8g2.setDrawColor(1);
-  u8g2.setFontPosTop();
-  u8g2.setFontDirection(0);
-}
+// void u8g2_prepare(void)
+// {
+//   // u8g2.setFont(u8g2_font_6x10_tf);
+//   // u8g2.setFont(u8g2_font_courB10_tf);
+//   u8g2.setFont(u8g2_font_profont15_tf);
+//   u8g2.setFontRefHeightExtendedText();
+//   u8g2.setDrawColor(1);
+//   u8g2.setFontPosTop();
+//   u8g2.setFontDirection(0);
+// }
 
 void u8g2_box_frame(uint8_t a)
 {
@@ -394,7 +396,7 @@ void u8g2_string4(uint16_t a)
 
   int dW;
   int dH;
-  const char *str;
+  // const char *str;
   int sW;
   int ascent;
 
@@ -461,10 +463,10 @@ void u8g2_string5(uint16_t a)
   // fontC = u8g2_font_t0_18_me;
   // fontC = u8g2_font_balthasar_titling_nbp_tn;
   // fontC = u8g2_font_logisoso16_tn;
-  // fontC = u8g2_font_logisoso42_tn;
+  fontC = u8g2_font_logisoso42_tn;
   // fontC = u8g2_font_logisoso46_tn;
   // fontC = u8g2_font_inb33_mn;
-  fontC = u8g2_font_inr33_mn;
+  // fontC = u8g2_font_inr33_mn;
 
   u8g2.setFont(fontC);
 
@@ -483,24 +485,22 @@ void u8g2_string5(uint16_t a)
   }
 
   int dW;
-  int dH;
-  const char *str;
+  // int dH;
+  // const char *str;
   int sW;
-  int ascent;
+  // int ascent;
 
   int x, y;
 
-  dH = u8g2.getDisplayHeight();
   dW = u8g2.getDisplayWidth();
   snprintf(buf, sizeof(buf), "%d:%02d", hr, min);
   sW = u8g2.getStrWidth(buf);
-  ascent = u8g2.getAscent();
 
   u8g2.setFontPosTop();
 
   if (buf[0] == char(49)) // number 1
   {
-    x = (dW - sW - 10) / 2;
+    x = (dW - sW - 8) / 2;
     y = 0;
   }
   else
@@ -569,7 +569,532 @@ void u8g2_string5(uint16_t a)
   y = 64;
   u8g2.setCursor(x, y);
   u8g2.print(buf);
+}
 
+void u8g2_string6(uint16_t a)
+{
+  tm *tm = localtime(&now);
+
+  uint8_t hr, min /*, sec*/;
+  hr = tm->tm_hour;
+  min = tm->tm_min;
+  // sec = tm->tm_sec;
+
+  char buf[36];
+
+  const uint8_t *fontC;
+
+  // fontC = u8g2_font_6x10_mn;
+  // fontC = u8g2_font_smart_patrol_nbp_tn;
+  // fontC = u8g2_font_profont15_mn;
+  // fontC = u8g2_font_px437wyse700b_mn;
+  // fontC = u8g2_font_profont17_mn;
+  // fontC = u8g2_font_t0_18_me;
+  // fontC = u8g2_font_balthasar_titling_nbp_tn;
+  // fontC = u8g2_font_logisoso16_tn;
+  fontC = u8g2_font_logisoso42_tn;
+  // fontC = u8g2_font_logisoso46_tn;
+  // fontC = u8g2_font_inb33_mn;
+  // fontC = u8g2_font_inr33_mn;
+
+  u8g2.setFont(fontC);
+
+  bool format12 = true;
+  if (format12)
+  {
+    if (hr == 0)
+    {
+      hr = 12;
+    }
+
+    if (hr > 12)
+    {
+      hr = hr - 12;
+    }
+  }
+
+  int dW;
+  // int dH;
+  // const char *str;
+  int sW;
+  // int ascent;
+
+  int x, y;
+
+  dW = u8g2.getDisplayWidth();
+  snprintf(buf, sizeof(buf), "%d:%02d", hr, min);
+  sW = u8g2.getStrWidth(buf);
+
+  u8g2.setFontPosTop();
+
+  if (buf[0] == char(49)) // number 1
+  {
+    x = (dW - sW - 8) / 2;
+    y = 0;
+  }
+  else
+  {
+    x = (dW - sW) / 2;
+    y = 0;
+  }
+
+  u8g2.setCursor(x + a, y);
+
+  u8g2.print(buf);
+
+  bool blinkColon = true;
+  if (blinkColon)
+  {
+    if (!state500ms)
+    {
+      u8g2.setCursor(x + a, y);
+      snprintf(buf, sizeof(buf), "%d", hr);
+      u8g2.print(buf);
+      u8g2.setFontMode(1);
+      u8g2.setDrawColor(0);
+      u8g2.print(":");
+      u8g2.setFontMode(1);  // default
+      u8g2.setDrawColor(1); // default
+    }
+  }
+
+  // snprintf(buf, sizeof(buf), "%s %s", sholatNameStr(NEXTTIMEID), sholatTimeArray[NEXTTIMEID]);
+
+  if (!state500ms)
+  {
+    snprintf(buf, sizeof(buf), "%s  %dh %2dm", sholatNameStr(NEXTTIMEID), ceilHOUR, ceilMINUTE);
+  }
+  else
+  {
+    snprintf(buf, sizeof(buf), "%s  %dh %2dm", sholatNameStr(NEXTTIMEID), ceilHOUR, ceilMINUTE);
+  }
+
+  u8g2.setFontPosBottom();
+
+  // fontC = u8g2_font_smart_patrol_nbp_tr;
+  // fontC = u8g2_font_8x13_tr;
+  fontC = u8g2_font_7x13_tr;
+
+  u8g2.setFont(fontC);
+
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+
+  x = (dW - sW) / 2;
+  y = 64;
+  u8g2.setCursor(x, y);
+
+  // u8g2.print(buf);
+
+  x = 0;
+  y = 64;
+  u8g2.setCursor(x, y);
+  u8g2.print(sholatNameStr(NEXTTIMEID));
+
+  snprintf(buf, sizeof(buf), "%dh %2dm", ceilHOUR, ceilMINUTE);
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW);
+  y = 64;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+}
+
+void u8g2_string7(uint16_t a)
+{
+  tm *tm = localtime(&now);
+
+  uint8_t hr, min /*, sec*/;
+  hr = tm->tm_hour;
+  min = tm->tm_min;
+  // sec = tm->tm_sec;
+
+  char buf[36];
+
+  const uint8_t *fontC;
+
+  // fontC = u8g2_font_6x10_mn;
+  fontC = u8g2_font_smart_patrol_nbp_tn;
+  // fontC = u8g2_font_profont15_mn;
+  // fontC = u8g2_font_px437wyse700b_mn;
+  // fontC = u8g2_font_profont17_mn;
+  // fontC = u8g2_font_t0_18_me;
+  // fontC = u8g2_font_balthasar_titling_nbp_tn;
+  // fontC = u8g2_font_logisoso16_tn;
+  // fontC = u8g2_font_logisoso42_tn;
+  // fontC = u8g2_font_logisoso46_tn;
+  // fontC = u8g2_font_inb33_mn;
+  // fontC = u8g2_font_inr33_mn;
+
+  u8g2.setFont(fontC);
+
+  bool format12 = true;
+  if (format12)
+  {
+    if (hr == 0)
+    {
+      hr = 12;
+    }
+
+    if (hr > 12)
+    {
+      hr = hr - 12;
+    }
+  }
+
+  int dW;
+  // int dH;
+  // const char *str;
+  int sW;
+  // int ascent;
+
+  int x, y;
+
+  dW = u8g2.getDisplayWidth();
+  snprintf(buf, sizeof(buf), "%d:%02d", hr, min);
+  sW = u8g2.getStrWidth(buf);
+
+  u8g2.setFontPosTop();
+
+  x = (dW - sW);
+  y = 0;
+
+  u8g2.setCursor(x + 0, y);
+
+  u8g2.print(buf);
+
+  // u8g2_2.setFontMode(0);  // default
+  // u8g2_2.setDrawColor(1); // default
+  u8g2_2.setFontPosTop();
+  u8g2_2.setFont(fontC);
+  u8g2_2.setCursor(x - 0, y);
+  snprintf(buf, sizeof(buf), "963");
+  // u8g2_2.print(buf);
+
+  bool blinkColon = true;
+  if (blinkColon)
+  {
+    if (!state500ms)
+    {
+      u8g2.setCursor(x + 0, y);
+      snprintf(buf, sizeof(buf), "%d", hr);
+      u8g2.print(buf);
+      u8g2.setFontMode(1);
+      u8g2.setDrawColor(0);
+      u8g2.print(":");
+      u8g2.setFontMode(1);  // default
+      u8g2.setDrawColor(1); // default
+    }
+  }
+
+  // print next sholat time
+  u8g2.setFontPosTop();
+  const uint8_t *font;
+  // font = u8g2_font_logisoso22_tn;
+  // font = u8g2_font_inb21_mr;
+  font = u8g2_font_profont29_mn;
+  // font = u8g2_font_freedoomr25_mn;
+  u8g2.setFont(font);
+
+  bool blinkNegativeSign = true;
+  if (blinkNegativeSign)
+  {
+    if (!state500ms)
+    {
+      if (HOUR != 0)
+      {
+        snprintf(buf, sizeof(buf), " %d:%02d:%02d", HOUR, MINUTE, SECOND);
+      }
+      else
+      {
+        snprintf(buf, sizeof(buf), " %d:%02d", MINUTE, SECOND);
+      }
+    }
+    else
+    {
+      if (HOUR != 0)
+      {
+        snprintf(buf, sizeof(buf), "-%d:%02d:%02d", HOUR, MINUTE, SECOND);
+      }
+      else
+      {
+        snprintf(buf, sizeof(buf), "-%d:%02d", MINUTE, SECOND);
+      }
+    }
+  }
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW) / 2;
+  y = 16;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+
+  // print next sholat name
+  u8g2.setFontPosBottom();
+  // font = u8g2_font_7x13_tr;
+  font = u8g2_font_profont22_mr;
+  u8g2.setFont(font);
+  snprintf(buf, sizeof(buf), "to %s", sholatNameStr(NEXTTIMEID));
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW) / 2;
+  y = 64;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+}
+
+void u8g2_string8(uint16_t a)
+{
+  tm *tm = localtime(&now);
+
+  uint8_t hr, min /*, sec*/;
+  hr = tm->tm_hour;
+  min = tm->tm_min;
+  // sec = tm->tm_sec;
+
+  char buf[36];
+
+  const uint8_t *font;
+
+  // font = u8g2_font_6x10_mn;
+  font = u8g2_font_smart_patrol_nbp_tn;
+  // font = u8g2_font_profont15_mn;
+  // font = u8g2_font_px437wyse700b_mn;
+  // font = u8g2_font_profont17_mn;
+  // font = u8g2_font_t0_18_me;
+  // font = u8g2_font_balthasar_titling_nbp_tn;
+  // font = u8g2_font_logisoso16_tn;
+  // font = u8g2_font_logisoso42_tn;
+  // font = u8g2_font_logisoso46_tn;
+  // font = u8g2_font_inb33_mn;
+  // font = u8g2_font_inr33_mn;
+  font = u8g2_font_freedoomr10_mu;
+
+  u8g2.setFont(font);
+
+  bool format12 = false;
+  if (format12)
+  {
+    if (hr == 0)
+    {
+      hr = 12;
+    }
+
+    if (hr > 12)
+    {
+      hr = hr - 12;
+    }
+  }
+
+  int dW;
+  // int dH;
+  // const char *str;
+  int sW;
+  // int ascent;
+
+  int x, y;
+
+  dW = u8g2.getDisplayWidth();
+  snprintf(buf, sizeof(buf), "%d:%02d", hr, min);
+  sW = u8g2.getStrWidth(buf);
+
+  u8g2.setFontPosTop();
+
+  x = (dW - sW);
+  y = 0;
+
+  u8g2.setCursor(x + 0, y);
+
+  u8g2.print(buf);
+
+  // u8g2_2.setFontMode(0);  // default
+  // u8g2_2.setDrawColor(1); // default
+  u8g2_2.setFontPosTop();
+  u8g2_2.setFont(font);
+  u8g2_2.setCursor(x - 0, y);
+  snprintf(buf, sizeof(buf), "963");
+  // u8g2_2.print(buf);
+
+  bool blinkColon = true;
+  if (blinkColon)
+  {
+    if (!state500ms)
+    {
+      u8g2.setCursor(x + 0, y);
+      snprintf(buf, sizeof(buf), "%d", hr);
+      u8g2.print(buf);
+      u8g2.setFontMode(1);
+      u8g2.setDrawColor(0);
+      u8g2.print(":");
+      u8g2.setFontMode(1);  // default
+      u8g2.setDrawColor(1); // default
+    }
+  }
+
+  // print next sholat time
+  u8g2.setFontPosTop();
+  // font = u8g2_font_logisoso22_tn;
+  // font = u8g2_font_inb21_mr;
+  font = u8g2_font_profont29_mr;
+  // font = u8g2_font_freedoomr25_mn;
+  u8g2.setFont(font);
+
+  snprintf(buf, sizeof(buf), "%dh %dm", ceilHOUR, ceilMINUTE);
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW) / 2;
+  y = 16;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+
+  // print next sholat name
+  u8g2.setFontPosBottom();
+  // font = u8g2_font_7x13_tr;
+  font = u8g2_font_profont22_mr;
+  u8g2.setFont(font);
+  snprintf(buf, sizeof(buf), "to %s", sholatNameStr(NEXTTIMEID));
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW) / 2;
+  y = 64;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+}
+
+void u8g2_string9(uint16_t a)
+{
+  tm *tm = localtime(&now);
+
+  uint8_t hr, min /*, sec*/;
+  hr = tm->tm_hour;
+  min = tm->tm_min;
+  // sec = tm->tm_sec;
+
+  char buf[36];
+
+  const uint8_t *font;
+
+  // font = u8g2_font_6x10_mn;
+  // font = u8g2_font_smart_patrol_nbp_tn;
+  // font = u8g2_font_profont15_mn;
+  // font = u8g2_font_px437wyse700b_mn;
+  // font = u8g2_font_profont17_mn;
+  // font = u8g2_font_t0_18_me;
+  // font = u8g2_font_balthasar_titling_nbp_tn;
+  // font = u8g2_font_logisoso16_tn;
+  // font = u8g2_font_logisoso42_tn;
+  // font = u8g2_font_logisoso46_tn;
+  // font = u8g2_font_inb33_mn;
+  // font = u8g2_font_inr33_mn;
+  font = u8g2_font_freedoomr10_mu;
+
+  u8g2.setFont(font);
+
+  bool format12 = false;
+  if (format12)
+  {
+    if (hr == 0)
+    {
+      hr = 12;
+    }
+
+    if (hr > 12)
+    {
+      hr = hr - 12;
+    }
+  }
+
+  int dW;
+  // int dH;
+  // const char *str;
+  int sW;
+  // int ascent;
+
+  int x, y;
+
+  dW = u8g2.getDisplayWidth();
+  snprintf(buf, sizeof(buf), "%d:%02d", hr, min);
+  sW = u8g2.getStrWidth(buf);
+
+  u8g2.setFontPosTop();
+
+  x = (dW - sW);
+  y = 0;
+
+  u8g2.setCursor(x + 0, y);
+
+  u8g2.print(buf);
+
+  // u8g2_2.setFontMode(0);  // default
+  // u8g2_2.setDrawColor(1); // default
+  u8g2_2.setFontPosTop();
+  u8g2_2.setFont(font);
+  u8g2_2.setCursor(x - 0, y);
+  snprintf(buf, sizeof(buf), "963");
+  // u8g2_2.print(buf);
+
+  bool blinkColon = true;
+  if (blinkColon)
+  {
+    if (!state500ms)
+    {
+      u8g2.setCursor(x + 0, y);
+      snprintf(buf, sizeof(buf), "%d", hr);
+      u8g2.print(buf);
+      u8g2.setFontMode(1);
+      u8g2.setDrawColor(0);
+      u8g2.print(":");
+      u8g2.setFontMode(1);  // default
+      u8g2.setDrawColor(1); // default
+    }
+  }
+
+  // print abbreviated weekday name
+  u8g2_2.setFontPosTop();
+  font = u8g2_font_smart_patrol_nbp_tr;
+  u8g2.setFont(font);
+  strftime(buf, sizeof(buf), "%a", tm);
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = (dW - sW);
+  y = u8g2.getAscent() + 6;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+
+  // print next sholat time
+  u8g2.setFontPosTop();
+  // font = u8g2_font_logisoso22_tn;
+  // font = u8g2_font_inb21_mr;
+  font = u8g2_font_profont22_mr;
+  // font = u8g2_font_freedoomr25_mn;
+  // font = u8g2_font_osb21_tr;
+  u8g2.setFont(font);
+
+  snprintf(buf, sizeof(buf), "%2d hr\r\n", ceilHOUR);
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = 0;
+  y = 0;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+  snprintf(buf, sizeof(buf), "%2d min\r\n", ceilMINUTE);
+  x = 0;
+  y = 21;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
+
+  // print next sholat name
+  u8g2.setFontPosBottom();
+  // font = u8g2_font_7x13_tr;
+  font = u8g2_font_profont22_mr;
+  u8g2.setFont(font);
+  snprintf(buf, sizeof(buf), "to %s", sholatNameStr(NEXTTIMEID));
+  dW = u8g2.getDisplayWidth();
+  sW = u8g2.getStrWidth(buf);
+  x = 0;
+  y = 63;
+  u8g2.setCursor(x, y);
+  u8g2.print(buf);
 }
 
 void u8g2_line(uint8_t a)
@@ -880,49 +1405,49 @@ void u8g2_bitmap_modes(uint8_t transparent)
 
 uint8_t draw_state = 24;
 
-void draw(void)
-{
-  u8g2_prepare();
-  switch (draw_state >> 3)
-  {
-  case 0:
-    u8g2_box_frame(draw_state & 7);
-    break;
-  case 1:
-    u8g2_disc_circle(draw_state & 7);
-    break;
-  case 2:
-    u8g2_r_frame(draw_state & 7);
-    break;
-  case 3:
-    u8g2_string(draw_state & 7);
-    break;
-  case 4:
-    u8g2_line(draw_state & 7);
-    break;
-  case 5:
-    u8g2_triangle(draw_state & 7);
-    break;
-  case 6:
-    u8g2_ascii_1();
-    break;
-  case 7:
-    u8g2_ascii_2();
-    break;
-  case 8:
-    u8g2_extra_page(draw_state & 7);
-    break;
-  case 9:
-    u8g2_bitmap_modes(0);
-    break;
-  case 10:
-    u8g2_bitmap_modes(1);
-    break;
-  case 11:
-    u8g2_bitmap_overlay(draw_state & 7);
-    break;
-  }
-}
+// void draw(void)
+// {
+//   u8g2_prepare();
+//   switch (draw_state >> 3)
+//   {
+//   case 0:
+//     u8g2_box_frame(draw_state & 7);
+//     break;
+//   case 1:
+//     u8g2_disc_circle(draw_state & 7);
+//     break;
+//   case 2:
+//     u8g2_r_frame(draw_state & 7);
+//     break;
+//   case 3:
+//     u8g2_string(draw_state & 7);
+//     break;
+//   case 4:
+//     u8g2_line(draw_state & 7);
+//     break;
+//   case 5:
+//     u8g2_triangle(draw_state & 7);
+//     break;
+//   case 6:
+//     u8g2_ascii_1();
+//     break;
+//   case 7:
+//     u8g2_ascii_2();
+//     break;
+//   case 8:
+//     u8g2_extra_page(draw_state & 7);
+//     break;
+//   case 9:
+//     u8g2_bitmap_modes(0);
+//     break;
+//   case 10:
+//     u8g2_bitmap_modes(1);
+//     break;
+//   case 11:
+//     u8g2_bitmap_overlay(draw_state & 7);
+//     break;
+//   }
+// }
 
 timeval cbtime; // time set in callback
 bool cbtime_set = false;
@@ -1022,7 +1547,8 @@ void setup()
   settimeofday_cb(time_is_set);
 
   // configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  // configTime(0, 0, "192.168.10.1", "pool.ntp.org");
+  configTime(0, 0, "pool.ntp.org", "192.168.10.1");
   // setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 3);
   // tzset();
   configTZ(TZ_Asia_Jakarta);
@@ -1063,7 +1589,11 @@ void setup()
   }
 
   // Wire.begin(SDA, SCL);
+  u8g2_2.begin();
+  u8g2_2.clear();
   u8g2.begin();
+  u8g2.clear();
+
   // flip screen, if required
   // u8g2.setRot180();
 
@@ -1124,14 +1654,6 @@ void loop()
     tick3000ms = true;
   }
 
-  if (updateSholat)
-  {
-    updateSholat = false;
-    // now = time(nullptr);
-    process_sholat();
-    process_sholat_2nd_stage();
-  }
-
   gettimeofday(&tv, nullptr);
   clock_gettime(0, &tp);
   // now = time(nullptr);
@@ -1149,8 +1671,6 @@ void loop()
     state500msTimer.once(0.5, FlipState500ms);
 
     tick1000ms = true;
-
-    ProcessSholatEverySecond();
 
     Serial.println();
     printTm("localtime", localtime(&now));
@@ -1196,6 +1716,16 @@ void loop()
     Serial.println();
   }
 
+  // update sholat must be below / after updating the timestamp
+  if (updateSholat)
+  {
+    updateSholat = false;
+    // now = time(nullptr);
+    // process_sholat();
+    // process_sholat_2nd_stage();
+    ProcessSholatEverySecond();
+  }
+
   if (tick100ms)
   {
     // gettimeofday(&tv, nullptr);
@@ -1213,10 +1743,18 @@ void loop()
     tick500ms = true;
   }
 
+  //update the display every 1000ms
+  if (tick1000ms)
+  {
+    ProcessSholatEverySecond();
+  }
+
   if (tick500ms)
   {
     // picture loop
-    u8g2.clearBuffer();
+    // must be after sholat time has been updated
+    // u8g2.clearBuffer();
+    u8g2_2.clearBuffer();
 
     static uint16_t x = 0;
     // u8g2_prepare();
@@ -1224,20 +1762,26 @@ void loop()
     // u8g2_string2(x);
     // u8g2_string3(x);
     // u8g2_string4(x);
-    u8g2_string5(x);
-    x = x + 1;
-    if (x >= 256)
+    // u8g2_string5(x);
+    // u8g2_string6(0);
+    // u8g2_string7(0);
+    // u8g2_string8(0);
+    u8g2_string9(0);
+    x = x - 84;
+    if (x <= -127)
     {
       x = 0;
     }
 
-    u8g2.sendBuffer();
-  }
+    // u8g2_2.setFontMode(0);  // default
+    // u8g2_2.setDrawColor(1); // default
+    // u8g2_2.setFontPosTop();
+    // u8g2_2.setFont(u8g2_font_logisoso42_tn);
+    // u8g2_2.setCursor(0,0);
+    // u8g2_2.print("AAA");
 
-  //update the display every 1000ms
-  if (tick1000ms)
-  {
-    // ProcessSholatEverySecond();
+    // u8g2.sendBuffer();
+    u8g2_2.sendBuffer();
   }
 
   tick100ms = false;

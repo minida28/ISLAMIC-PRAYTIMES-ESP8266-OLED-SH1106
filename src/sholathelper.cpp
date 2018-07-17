@@ -457,7 +457,7 @@ void process_sholat_2nd_stage()
 
 void ProcessSholatEverySecond()
 {
-  time_t now = time(nullptr);
+  // time_t now = time(nullptr);
   if (now >= nextSholatTime)
   {
     process_sholat();
