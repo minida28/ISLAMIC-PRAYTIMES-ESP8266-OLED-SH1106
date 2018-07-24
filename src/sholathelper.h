@@ -2,6 +2,10 @@
 #define sholathelper_h
 
 #include <Arduino.h>
+#include "sholat.h"
+// #include "sntphelper.h"
+#include "timehelper.h"
+#include "progmemmatrix.h"
 
 extern PrayerTimes sholat;
 
@@ -28,5 +32,7 @@ void ProcessSholatEverySecond();
 float TimezoneFloat();
 int32_t TimezoneMinutes();
 int32_t TimezoneSeconds();
+
+void SholatLoop();
 
 #endif

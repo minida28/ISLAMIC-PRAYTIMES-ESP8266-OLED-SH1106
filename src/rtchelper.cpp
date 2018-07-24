@@ -1,8 +1,6 @@
 #include "rtchelper.h"
 #include <time.h>
 
-#define PROGMEM_T __attribute__((section(".irom.text.template")))
-
 #define PRINTPORT Serial
 #define DEBUGPORT Serial
 
@@ -10,18 +8,28 @@
 
 #define PRINT(fmt, ...)                       \
   {                                           \
-    static const char pfmt[] PROGMEM_T = fmt; \
+    static const char pfmt[] PROGMEM = fmt; \
     PRINTPORT.printf_P(pfmt, ##__VA_ARGS__);  \
   }
 
+// #define RELEASE
+
 #ifndef RELEASE
-#define DEBUGLOG(fmt, ...)                    \
-  {                                           \
-    static const char pfmt[] PROGMEM_T = fmt; \
-    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+#define DEBUGLOG(fmt, ...)                   \
+  {                                          \
+    static const char pfmt[] PROGMEM = fmt;  \
+    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__); \
+  }
+#define DEBUGLOGLN(fmt, ...)                 \
+  {                                          \
+    static const char pfmt[] PROGMEM = fmt;  \
+    static const char rn[] PROGMEM = "\r\n"; \
+    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__); \
+    DEBUGPORT.printf_P(rn);                  \
   }
 #else
 #define DEBUGLOG(...)
+#define DEBUGLOGLN(...)
 #endif
 
 RtcDS3231<TwoWire> Rtc(Wire);
@@ -59,25 +67,19 @@ uint8_t GetRtcStatus()
   // status = 1; RTC lost confidence in the DateTime!
   // status = 2; Actual clock is NOT running on the RTC
 
-  byte rtcStatus = RTC_LOST_CONFIDENT;
-
   if (Rtc.GetIsRunning())
   {
     if (Rtc.IsDateTimeValid())
     {
-      rtcStatus = RTC_TIME_VALID;
+      return RTC_TIME_VALID;
     }
     else if (!Rtc.IsDateTimeValid())
     {
-      rtcStatus = RTC_LOST_CONFIDENT;
+      return RTC_LOST_CONFIDENT;
     }
   }
-  else
-  {
-    rtcStatus = CLOCK_NOT_RUNNING;
-  }
 
-  return rtcStatus;
+  return CLOCK_NOT_RUNNING;
 }
 
 time_t get_time_from_rtc()
@@ -88,50 +90,16 @@ time_t get_time_from_rtc()
   if (GetRtcStatus() == RTC_TIME_VALID)
   {
     syncSuccessByRtc = true;
-
-    RtcDateTime dt = Rtc.GetDateTime();
-
-    time_t t = dt.Epoch32Time();
-
-    // _lastSyncd = t;
-
-    return t;
   }
 
-  return 0; // return 0 if unable to get the time
+  RtcDateTime dt = Rtc.GetDateTime();
+
+  time_t t = dt.Epoch32Time();
+
+  return t; // return 0 if unable to get the time
 }
 
-void printRtcTime(const RtcDateTime &dt)
-{
-  char datestring[20];
-
-  snprintf_P(datestring,
-             //countof(datestring),
-             (sizeof(datestring) / sizeof(datestring[0])),
-             PSTR("%04u/%02u/%02uT%02u:%02u:%02u"),
-
-             dt.Year(),
-             dt.Month(),
-             dt.Day(),
-
-             dt.Hour(),
-             dt.Minute(),
-             dt.Second()
-
-  );
-
-  Serial.print(datestring);
-}
-
-char *getDateTimeString(time_t moment)
-{
-  DEBUGLOG("%s\r\n", __PRETTY_FUNCTION__);
-  static char buf[60];
-  strftime(buf, (sizeof(buf) / sizeof(buf[0])), "%a %b %d %Y %X GMT", gmtime(&moment));
-  return buf;
-}
-
-void rtcSetup()
+void RtcSetup()
 {
   DEBUGLOG("%s\r\n", __PRETTY_FUNCTION__);
   Rtc.Begin();
@@ -145,7 +113,8 @@ void rtcSetup()
     RtcDateTime dt = Rtc.GetDateTime();
     time_t timeRtc = dt.Epoch32Time();
 
-    PRINT("RTC LOST CONFIDENCE, timestamp (UTC):%li, %s\r\n", timeRtc, getDateTimeString(timeRtc));
+    // PRINT("RTC LOST CONFIDENCE, timestamp (UTC):%li, %s\r\n", timeRtc, getDateTimeStr(timeRtc));
+    PRINT("RTC LOST CONFIDENCE, timestamp (UTC):%li\r\n", timeRtc);
 
     unsigned long currMillis = millis();
     while (!Rtc.IsDateTimeValid() && millis() - currMillis <= 5000)
@@ -171,7 +140,8 @@ void rtcSetup()
   {
     RtcDateTime dt = Rtc.GetDateTime();
     time_t timeRtc = dt.Epoch32Time();
-    PRINT("RTC time is VALID, timestamp (UTC):%li, %s\r\n", timeRtc, getDateTimeString(timeRtc));
+    // PRINT("RTC time is VALID, timestamp (UTC):%li, %s\r\n", timeRtc, GetRtcDateTimeStr(timeRtc));
+    PRINT("RTC time is VALID, timestamp (UTC):%li\r\n", timeRtc);
   }
 
   if (!Rtc.GetIsRunning())
@@ -185,4 +155,19 @@ void rtcSetup()
   Rtc.Enable32kHzPin(true);
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeClock);
   Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
+
+
+  // for testing purpose
+  if (GetRtcStatus() == RTC_LOST_CONFIDENT)
+  {
+    time_t t = get_time_from_rtc();
+    if (t > 1514764800 && t <= 4102444800)
+    {
+      DEBUGLOGLN("RTC_LOST_CONFIDENT but the timestamp is bigger than 1514764800 & less than 4102444800");
+      DEBUGLOGLN("Clear RTC invalid flag.");
+       RtcDateTime timeToSetToRTC;
+       timeToSetToRTC.InitWithEpoch32Time(t);
+       Rtc.SetDateTime(timeToSetToRTC);
+    }
+  }
 }

@@ -39,29 +39,27 @@
 // #define RELEASE
 //#define RELEASEASYNCWS
 
-#define PROGMEM_T __attribute__((section(".irom.text.template")))
-
-#define PRINT(fmt, ...)                       \
-  {                                           \
-    static const char pfmt[] PROGMEM_T = fmt; \
-    PRINTPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+#define PRINT(fmt, ...)                      \
+  {                                          \
+    static const char pfmt[] PROGMEM = fmt;  \
+    PRINTPORT.printf_P(pfmt, ##__VA_ARGS__); \
   }
 
 #ifndef RELEASE
-#define DEBUGLOG(fmt, ...)                    \
-  {                                           \
-    static const char pfmt[] PROGMEM_T = fmt; \
-    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+#define DEBUGLOG(fmt, ...)                   \
+  {                                          \
+    static const char pfmt[] PROGMEM = fmt;  \
+    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__); \
   }
 #else
 #define DEBUGLOG(...)
 #endif
 
 #ifndef RELEASEASYNCWS
-#define DEBUGASYNCWS(fmt, ...)                \
-  {                                           \
-    static const char pfmt[] PROGMEM_T = fmt; \
-    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__);  \
+#define DEBUGASYNCWS(fmt, ...)               \
+  {                                          \
+    static const char pfmt[] PROGMEM = fmt;  \
+    DEBUGPORT.printf_P(pfmt, ##__VA_ARGS__); \
   }
 #else
 #define DEBUGASYNCWS(...)
@@ -190,7 +188,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   }
   else if (type == WS_EVT_DISCONNECT)
   {
-    DEBUGASYNCWS("ws[%s][%u] disconnect: [%u\r\n", server->url(), client->id(), client->id());
+    DEBUGASYNCWS("ws[%s][%u] disconnect: [%u]\r\n", server->url(), client->id(), client->id());
     //_secondTk.detach();
     //eventsourceTriggered = false;
     wsConnected = false;
@@ -208,31 +206,27 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   {
     AwsFrameInfo *info = (AwsFrameInfo *)arg;
     char msg[len + 1];
-    msg[0] = '\0';
+    // msg[0] = '\0';
     if (info->final && info->index == 0 && info->len == len)
     {
       //the whole message is in a single frame and we got all of it's data
-      DEBUGLOG("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+      DEBUGLOG("ws[%s][%u] %s-message[%u]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", (uint32_t)info->len);
 
       if (info->opcode == WS_TEXT)
       {
-        client->text(FPSTR(pgm_txt_gotyourtextmessage));
+        Serial.print("case A ");
+        for (size_t i = 0; i < info->len; i++)
+        {
+          msg[i] = (char)data[i];
+        }
       }
       else
       {
-        client->binary(FPSTR(pgm_txt_gotyourbinarymessage));
-      }
-
-      if (info->opcode == WS_TEXT)
-      {
-      }
-      else
-      {
+        Serial.print("case B ");
         char buff[3];
         for (size_t i = 0; i < info->len; i++)
         {
           sprintf(buff, "%02x ", (uint8_t)data[i]);
-          //msg += buff ;
           if (i == 0)
           {
             strcpy(msg, buff);
@@ -245,6 +239,15 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
       }
       msg[len + 1] = '\0';
       DEBUGASYNCWS("%s\r\n", msg);
+
+      if (info->opcode == WS_TEXT)
+      {
+        client->text(FPSTR(pgm_txt_gotyourtextmessage));
+      }
+      else
+      {
+        client->binary(FPSTR(pgm_txt_gotyourbinarymessage));
+      }
     }
     else
     {
@@ -260,30 +263,19 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
       if (info->opcode == WS_TEXT)
       {
+        Serial.print("case C ");
         for (size_t i = 0; i < info->len; i++)
         {
-          //msg += (char) data[i];
-          //strcat(msg, const_cast<char*>((char)data[i]));
-          char _data[2];
-          _data[0] = (char)data[i];
-          _data[1] = '\0';
-          if (i == 0)
-          {
-            strcpy(msg, _data);
-          }
-          else
-          {
-            strcat(msg, _data);
-          }
+          msg[i] = (char)data[i];
         }
       }
       else
       {
+        Serial.print("case D ");
         char buff[3];
         for (size_t i = 0; i < info->len; i++)
         {
           sprintf(buff, "%02x ", (uint8_t)data[i]);
-          //msg += buff ;
           if (i == 0)
           {
             strcpy(msg, buff);
@@ -294,7 +286,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
           }
         }
       }
-      msg[len + 1] = '\0';
+      msg[len] = '\0';
       DEBUGASYNCWS("%s\r\n", msg);
 
       if ((info->index + len) == info->len)
@@ -309,6 +301,20 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             client->binary(pgm_txt_gotyourbinarymessage);
         }
       }
+    }
+
+    if (strncmp_P(msg, pgm_schedulepagesholat, strlen_P(pgm_schedulepagesholat)) == 0)
+    {
+      clientVisitSholatTimePage = true;
+      sendSholatSchedule(2);
+    }
+    else if (strncmp_P(msg, pgm_settimepage, strlen_P(pgm_settimepage)) == 0)
+    {
+      clientVisitSetTimePage = true;
+    }
+    else if (strncmp_P(msg, pgm_statuspagesystem, strlen_P(pgm_statuspagesystem)) == 0)
+    {
+      clientVisitStatusSystemPage = true;
     }
   }
 }
@@ -946,6 +952,8 @@ void AsyncWSBegin()
   });
 
   server.begin();
+  
+  save_system_info();
 }
 
 // -------------------------------------------------
@@ -1166,7 +1174,8 @@ void sendTimeStatus(uint8_t mode)
   root[FPSTR(pgm_date)] = getDateStr();
   root[FPSTR(pgm_time)] = getTimeStr();
   root[FPSTR(pgm_uptime)] = getUptimeStr();
-  if (_lastSyncd != 0)
+  root[FPSTR(pgm_lastboot)] = getLastBootStr();
+  if (lastSync != 0)
   {
     root[FPSTR(pgm_lastsync)] = getLastSyncStr();
     root[FPSTR(pgm_nextsync)] = getNextSyncStr();
@@ -2854,4 +2863,136 @@ void sendSholatSchedule(uint8_t mode)
   {
     ws.text(clientID, buf);
   }
+}
+
+int pgm_lastIndexOf(uint8_t c, const char *p)
+{
+  int last_index = -1; // -1 indicates no match
+  uint8_t b;
+  for (int i = 0; true; i++)
+  {
+    b = pgm_read_byte(p++);
+    if (b == c)
+      last_index = i;
+    else if (b == 0)
+      break;
+  }
+  return last_index;
+}
+
+bool save_system_info()
+{
+  PRINT("%s\r\n", __PRETTY_FUNCTION__);
+
+  // const char* pathtofile = PSTR(pgm_filesystemoverview);
+
+  File file;
+  if (!SPIFFS.exists(FPSTR(pgm_systeminfofile)))
+  {
+    file = SPIFFS.open(FPSTR(pgm_systeminfofile), "w");
+    if (!file)
+    {
+      PRINT("Failed to open config file for writing\r\n");
+      file.close();
+      return false;
+    }
+    //create blank json file
+    PRINT("Creating user config file for writing\r\n");
+    file.print("{}");
+    file.close();
+  }
+  //get existing json file
+  file = SPIFFS.open(FPSTR(pgm_systeminfofile), "w");
+  if (!file)
+  {
+    PRINT("Failed to open config file");
+    return false;
+  }
+
+  const char *the_path = PSTR(__FILE__);
+  // const char *_compiletime = PSTR(__TIME__);
+
+  int slash_loc = pgm_lastIndexOf('/', the_path); // index of last '/'
+  if (slash_loc < 0)
+    slash_loc = pgm_lastIndexOf('\\', the_path); // or last '\' (windows, ugh)
+
+  int dot_loc = pgm_lastIndexOf('.', the_path); // index of last '.'
+  if (dot_loc < 0)
+    dot_loc = pgm_lastIndexOf(0, the_path); // if no dot, return end of string
+
+  int lenPath = strlen(the_path);
+  int lenFileName = (lenPath - (slash_loc + 1));
+
+  char fileName[lenFileName];
+  //Serial.println(lenFileName);
+  //Serial.println(sizeof(fileName));
+
+  int j = 0;
+  for (int i = slash_loc + 1; i < lenPath; i++)
+  {
+    uint8_t b = pgm_read_byte(&the_path[i]);
+    if (b != 0)
+    {
+      fileName[j] = (char)b;
+      //Serial.print(fileName[j]);
+      j++;
+      if (j >= lenFileName)
+      {
+        break;
+      }
+    }
+    else
+    {
+      break;
+    }
+  }
+  //Serial.println();
+  //Serial.println(j);
+  fileName[lenFileName] = '\0';
+
+  //const char* _compiledate = PSTR(__DATE__);
+  int lenCompileDate = strlen_P(PSTR(__DATE__));
+  char compileDate[lenCompileDate];
+  strcpy_P(compileDate, PSTR(__DATE__));
+
+  int lenCompileTime = strlen_P(PSTR(__TIME__));
+  char compileTime[lenCompileTime];
+  strcpy_P(compileTime, PSTR(__TIME__));
+
+  StaticJsonBuffer<1024> jsonBuffer;
+  JsonObject &root = jsonBuffer.createObject();
+
+  SPIFFS.info(fs_info);
+
+  root[FPSTR(pgm_totalbytes)] = fs_info.totalBytes;
+  root[FPSTR(pgm_usedbytes)] = fs_info.usedBytes;
+  root[FPSTR(pgm_blocksize)] = fs_info.blockSize;
+  root[FPSTR(pgm_pagesize)] = fs_info.pageSize;
+  root[FPSTR(pgm_maxopenfiles)] = fs_info.maxOpenFiles;
+  root[FPSTR(pgm_maxpathlength)] = fs_info.maxPathLength;
+
+  root[FPSTR(pgm_filename)] = fileName;
+  root[FPSTR(pgm_compiledate)] = compileDate;
+  root[FPSTR(pgm_compiletime)] = compileTime;
+  root[FPSTR(pgm_lastboot)] = getLastBootStr();
+  root[FPSTR(pgm_chipid)] = ESP.getChipId();
+  root[FPSTR(pgm_cpufreq)] = ESP.getCpuFreqMHz();
+  root[FPSTR(pgm_sketchsize)] = ESP.getSketchSize();
+  root[FPSTR(pgm_freesketchspace)] = ESP.getFreeSketchSpace();
+  root[FPSTR(pgm_flashchipid)] = ESP.getFlashChipId();
+  root[FPSTR(pgm_flashchipmode)] = ESP.getFlashChipMode();
+  root[FPSTR(pgm_flashchipsize)] = ESP.getFlashChipSize();
+  root[FPSTR(pgm_flashchiprealsize)] = ESP.getFlashChipRealSize();
+  root[FPSTR(pgm_flashchipspeed)] = ESP.getFlashChipSpeed();
+  root[FPSTR(pgm_cyclecount)] = ESP.getCycleCount();
+  root[FPSTR(pgm_corever)] = ESP.getFullVersion();
+  root[FPSTR(pgm_sdkver)] = ESP.getSdkVersion();
+  root[FPSTR(pgm_bootmode)] = ESP.getBootMode();
+  root[FPSTR(pgm_bootversion)] = ESP.getBootVersion();
+  root[FPSTR(pgm_resetreason)] = ESP.getResetReason();
+
+  root.prettyPrintTo(file);
+  file.flush();
+  file.close();
+  return true;
 }

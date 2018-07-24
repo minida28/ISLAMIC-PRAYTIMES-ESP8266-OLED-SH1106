@@ -146,6 +146,8 @@ void sendHeap(uint8_t mode);
 void sendDateTime(uint8_t mode);
 void sendTimeStatus(uint8_t mode);
 
+bool save_system_info();
+
 
 
 #endif

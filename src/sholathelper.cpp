@@ -1,8 +1,4 @@
-#include <Arduino.h>
-#include "sholat.h"
 #include "sholathelper.h"
-#include "timehelper.h"
-#include "progmemmatrix.h"
 
 #define PROGMEM_T __attribute__((section(".irom.text.template")))
 
@@ -69,7 +65,9 @@ char *sholatNameStr(uint8_t id)
 
 void process_sholat()
 {
-  DEBUGLOG("\n%s\r\n", __PRETTY_FUNCTION__);
+  DEBUGLOG("\r\n%s\r\n", __PRETTY_FUNCTION__);
+
+  Serial.println(now);
 
   sholat.set_calc_method(_sholatConfig.calcMethod);
   sholat.set_asr_method(_sholatConfig.asrJuristic);
@@ -128,7 +126,7 @@ void process_sholat()
 
   // print sholat times for yesterday
   PRINT("\r\nYESTERDAY's Schedule - %s", asctime(tm));
-  for (unsigned int i = 0; i < sizeof(sholat.timesYesterday) / sizeof(double); i++)
+  for (uint8_t i = 0; i < sizeof(sholat.timesYesterday) / sizeof(double); i++)
   {
     // Convert sholat time from float to hour and minutes
     // and store to an array (to retrieve if needed)
@@ -174,7 +172,7 @@ void process_sholat()
 
   // print sholat times
   PRINT("\r\nTODAY's Schedule - %s", asctime(tm));
-  for (unsigned int i = 0; i < sizeof(sholat.times) / sizeof(double); i++)
+  for (uint8_t i = 0; i < sizeof(sholat.times) / sizeof(double); i++)
   {
     //Convert sholat time from float to hour and minutes
     //and store to an array (to retrieve if needed)
@@ -222,7 +220,7 @@ void process_sholat()
 
   // print sholat times for Tomorrow
   PRINT("\r\nTOMORROW's Schedule - %s", asctime(tm));
-  for (unsigned int i = 0; i < sizeof(sholat.timesTomorrow) / sizeof(double); i++)
+  for (uint8_t i = 0; i < sizeof(sholat.timesTomorrow) / sizeof(double); i++)
   {
     //Convert sholat time from float to hour and minutes
     //and store to an array (to retrieve if needed)
@@ -455,23 +453,6 @@ void process_sholat_2nd_stage()
   }
 }
 
-void ProcessSholatEverySecond()
-{
-  // time_t now = time(nullptr);
-  if (now >= nextSholatTime)
-  {
-    process_sholat();
-  }
-
-  process_sholat_2nd_stage();
-
-  static int NEXTTIMEID_old = 100;
-
-  if (NEXTTIMEID != NEXTTIMEID_old)
-  {
-    NEXTTIMEID_old = NEXTTIMEID;
-  }
-}
 
 float TimezoneFloat()
 {
@@ -506,4 +487,21 @@ int32_t TimezoneMinutes()
 int32_t TimezoneSeconds()
 {
   return TimezoneMinutes() * 60;
+}
+
+void SholatLoop()
+{
+  if (now >= nextSholatTime)
+  {
+    process_sholat();
+  }
+
+  process_sholat_2nd_stage();
+
+  // static int NEXTTIMEID_old = 100;
+
+  // if (NEXTTIMEID != NEXTTIMEID_old)
+  // {
+  //   NEXTTIMEID_old = NEXTTIMEID;
+  // }
 }
